@@ -1,0 +1,24 @@
+{
+  /* --- Java LSP & Performance --- */
+  "java.server.launchMode": "Standard",
+  "java.import.maven.enabled": true,
+  "java.autobuild.enabled": false,
+  "java.jdt.ls.vmargs": "-Xmx2G -XX:+UseG1GC",
+  "java.configuration.updateBuildConfiguration": "automatic",
+  "java.import.projectConfiguration.updatePolicy": "automatic",
+  "java.compile.nullAnalysis.mode": "disabled",
+
+  /* --- Editor UI & Experience --- */
+  "workbench.colorTheme": "Default Light Modern",
+  "editor.codeLens": false,
+  "editor.minimap.enabled": false,
+
+  /* --- Privacy & Telemetry --- */
+  "redhat.telemetry.enabled": false,
+  "telemetry.telemetryLevel": "off",
+
+  /* --- Hygiene for Dev Spaces --- */
+  "java.configuration.checkProjectSettingsExclusion": false,
+  "java.help.firstView": "gettingstarted",
+  "java.project.importHint": false
+}
