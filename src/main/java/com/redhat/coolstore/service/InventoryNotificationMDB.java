@@ -5,6 +5,7 @@ import com.redhat.coolstore.utils.Transformers;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
 
 import org.eclipse.microprofile.reactive.messaging.Incoming;
 
@@ -17,6 +18,7 @@ public class InventoryNotificationMDB {
     private CatalogService catalogService;
 
     @Incoming("orders")
+    @Transactional
     public void onMessage(String orderStr) {
         System.out.println("received message inventory");
         Order order = Transformers.jsonToOrder(orderStr);
