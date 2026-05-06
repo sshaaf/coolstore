@@ -1,0 +1,35 @@
+# CODEOWNERS file for Red Hat Coolstore
+# This file defines who is responsible for code in this repository.
+# Order is important; the last matching pattern takes precedence.
+
+# Default owners for everything in the repo
+*                           @sshaaf
+
+# CI/CD configuration
+/.github/                   @sshaaf
+/.github/workflows/         @sshaaf
+
+# Documentation
+*.md                        @sshaaf
+/docs/                      @sshaaf
+
+# Source code
+/src/                       @sshaaf
+/src/main/java/             @sshaaf
+/src/test/java/             @sshaaf
+
+# Configuration files
+pom.xml                     @sshaaf
+/src/main/resources/        @sshaaf
+
+# Benchmarks
+/src/test/java/**/benchmarks/ @sshaaf
+
+# Docker and Kubernetes
+Dockerfile*                 @sshaaf
+docker-compose.yml          @sshaaf
+/k8s/                       @sshaaf
+
+# Security-sensitive files (require additional review)
+/src/main/resources/application.properties @sshaaf
+/src/main/resources/application.yml        @sshaaf

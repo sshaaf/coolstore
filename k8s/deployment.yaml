@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coolstore-quarkus
+  labels:
+    app: coolstore-quarkus
+    app.kubernetes.io/name: coolstore-quarkus
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: coolstore
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: coolstore-quarkus
+  template:
+    metadata:
+      labels:
+        app: coolstore-quarkus
+        app.kubernetes.io/name: coolstore-quarkus
+        app.kubernetes.io/version: "1.0.0"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/q/metrics"
+        prometheus.io/port: "8080"
+    spec:
+      containers:
+      - name: coolstore-quarkus
+        image: ghcr.io/sshaaf/coolstore-quarkus:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        env:
+        - name: QUARKUS_HTTP_PORT
+          value: "8080"
+        - name: QUARKUS_LOG_LEVEL
+          value: "INFO"
+        - name: JAVA_OPTIONS
+          value: "-Xmx512m -Xms256m -Dnet.bytebuddy.experimental=true"
+        envFrom:
+        - configMapRef:
+            name: coolstore-config
+        - secretRef:
+            name: coolstore-secrets
+            optional: true
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+        livenessProbe:
+          httpGet:
+            path: /q/health/live
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /q/health/ready
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /q/health/started
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 0
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 30
+        volumeMounts:
+        - name: config-volume
+          mountPath: /deployments/config
+          readOnly: true
+      volumes:
+      - name: config-volume
+        configMap:
+          name: coolstore-config
+          optional: true
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30

@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coolstore-config
+  labels:
+    app: coolstore-quarkus
+    app.kubernetes.io/name: coolstore-quarkus
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: coolstore
+data:
+  # Application configuration
+  QUARKUS_HTTP_PORT: "8080"
+  QUARKUS_LOG_LEVEL: "INFO"
+  QUARKUS_LOG_CONSOLE_ENABLE: "true"
+  QUARKUS_LOG_CONSOLE_FORMAT: "%d{HH:mm:ss} %-5p [%c{2.}] (%t) %s%e%n"
+  QUARKUS_LOG_CONSOLE_JSON: "false"
+
+  # Database configuration (H2 in-memory for demo)
+  QUARKUS_DATASOURCE_DB_KIND: "h2"
+  QUARKUS_DATASOURCE_JDBC_URL: "jdbc:h2:mem:coolstore;DB_CLOSE_DELAY=-1"
+  QUARKUS_DATASOURCE_USERNAME: "sa"
+
+  # Flyway configuration
+  QUARKUS_FLYWAY_MIGRATE_AT_START: "true"
+
+  # Health check configuration
+  QUARKUS_HEALTH_OPENAPI_INCLUDED: "true"
+
+  # Metrics configuration
+  QUARKUS_MICROMETER_EXPORT_PROMETHEUS_ENABLED: "true"
+
+  # OpenAPI configuration
+  QUARKUS_SMALLRYE_OPENAPI_PATH: "/openapi"
+  QUARKUS_SWAGGER_UI_ALWAYS_INCLUDE: "true"
+  QUARKUS_SWAGGER_UI_PATH: "/swagger-ui"
+
+  # Application-specific configuration
+  application.properties: |
+    # Application name
+    quarkus.application.name=coolstore-quarkus
+
+    # HTTP configuration
+    quarkus.http.port=8080
+    quarkus.http.cors=true
+
+    # Logging
+    quarkus.log.level=INFO
+    quarkus.log.category."com.redhat.coolstore".level=DEBUG
+
+    # Database
+    quarkus.datasource.db-kind=h2
+    quarkus.datasource.jdbc.url=jdbc:h2:mem:coolstore;DB_CLOSE_DELAY=-1
+    quarkus.datasource.username=sa
+    quarkus.datasource.password=
+
+    # Hibernate ORM
+    quarkus.hibernate-orm.database.generation=none
+    quarkus.hibernate-orm.log.sql=false
+
+    # Flyway
+    quarkus.flyway.migrate-at-start=true
