@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: coolstore-quarkus
+  labels:
+    app: coolstore-quarkus
+    app.kubernetes.io/name: coolstore-quarkus
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: coolstore
+spec:
+  type: ClusterIP
+  selector:
+    app: coolstore-quarkus
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+  sessionAffinity: None

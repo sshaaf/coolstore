@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  # Coolstore Quarkus Application
+  coolstore:
+    build:
+      context: .
+      dockerfile: src/main/docker/Dockerfile.jvm
+    container_name: coolstore-quarkus
+    ports:
+      - "8080:8080"
+    environment:
+      - QUARKUS_DATASOURCE_JDBC_URL=jdbc:h2:mem:coolstore;DB_CLOSE_DELAY=-1
+      - QUARKUS_DATASOURCE_USERNAME=sa
+      - QUARKUS_DATASOURCE_PASSWORD=
+      - QUARKUS_HTTP_PORT=8080
+      - QUARKUS_LOG_LEVEL=INFO
+      - JAVA_OPTIONS=-Xmx512m -Xms256m -Dnet.bytebuddy.experimental=true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/q/health/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - coolstore-network
+
+  # PostgreSQL Database (alternative to H2 for production-like testing)
+  postgres:
+    image: postgres:15-alpine
+    container_name: coolstore-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=coolstore
+      - POSTGRES_USER=coolstore
+      - POSTGRES_PASSWORD=coolstore
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U coolstore"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - coolstore-network
+
+  # Prometheus for metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: coolstore-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - coolstore-network
+
+  # Grafana for metrics visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: coolstore-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    depends_on:
+      - prometheus
+    networks:
+      - coolstore-network
+
+networks:
+  coolstore-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  prometheus-data:
+  grafana-data:

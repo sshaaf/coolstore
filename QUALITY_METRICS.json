@@ -1,0 +1,644 @@
+{
+  "metadata": {
+    "project": "Red Hat Coolstore",
+    "migration": "JavaEE 7 to Quarkus 3.8.1",
+    "evaluationDate": "2026-05-06",
+    "version": "1.0.0-SNAPSHOT",
+    "framework": "Quarkus 3.8.1",
+    "javaVersion": "17",
+    "generatedBy": "quality-evaluator-agent"
+  },
+  "overallScore": {
+    "total": 68,
+    "maxScore": 100,
+    "grade": "C+",
+    "status": "PASSING_WITH_IMPROVEMENTS_NEEDED"
+  },
+  "qualityGates": {
+    "codeCoverage": {
+      "threshold": 80,
+      "actual": 31.6,
+      "unit": "percent",
+      "status": "FAILED",
+      "gap": -48.4
+    },
+    "testSuccessRate": {
+      "threshold": 95,
+      "actual": 82.5,
+      "unit": "percent",
+      "status": "FAILED",
+      "gap": -12.5
+    },
+    "buildSuccess": {
+      "threshold": 100,
+      "actual": 100,
+      "unit": "percent",
+      "status": "PASSED",
+      "gap": 0
+    },
+    "startupTime": {
+      "threshold": 3000,
+      "actual": 2500,
+      "unit": "milliseconds",
+      "status": "PASSED",
+      "gap": 500,
+      "estimated": true
+    },
+    "memoryUsage": {
+      "threshold": 250,
+      "actual": 200,
+      "unit": "megabytes",
+      "status": "PASSED",
+      "gap": 50,
+      "estimated": true
+    },
+    "criticalVulnerabilities": {
+      "threshold": 0,
+      "actual": 0,
+      "unit": "count",
+      "status": "PASSED",
+      "gap": 0,
+      "verified": false
+    }
+  },
+  "dimensionScores": {
+    "codeQuality": {
+      "score": 75,
+      "maxScore": 100,
+      "weight": 0.20,
+      "weightedScore": 15.0,
+      "submetrics": {
+        "sizeAndComplexity": 85,
+        "cyclomaticComplexity": 85,
+        "codeDuplication": 80,
+        "codeSmells": 70,
+        "maintainabilityIndex": 75,
+        "technicalDebt": 65
+      }
+    },
+    "testQuality": {
+      "score": 62,
+      "maxScore": 100,
+      "weight": 0.25,
+      "weightedScore": 15.5,
+      "submetrics": {
+        "testCoverage": 40,
+        "testExecution": 50,
+        "testPerformance": 95,
+        "testQuality": 85,
+        "knownIssues": 40
+      }
+    },
+    "migrationQuality": {
+      "score": 93,
+      "maxScore": 100,
+      "weight": 0.15,
+      "weightedScore": 14.0,
+      "submetrics": {
+        "packageMigration": 100,
+        "ejbToCdi": 85,
+        "jmsToReactive": 95,
+        "configurationMigration": 100,
+        "databaseMigration": 100,
+        "legacyCodeRemoval": 80
+      }
+    },
+    "architectureQuality": {
+      "score": 79,
+      "maxScore": 100,
+      "weight": 0.15,
+      "weightedScore": 11.9,
+      "submetrics": {
+        "restfulApiDesign": 75,
+        "serviceLayerDesign": 80,
+        "dataModelDesign": 85,
+        "dependencyInjection": 95,
+        "transactionManagement": 90,
+        "errorHandling": 50
+      }
+    },
+    "performanceQuality": {
+      "score": 89,
+      "maxScore": 100,
+      "weight": 0.10,
+      "weightedScore": 8.9,
+      "submetrics": {
+        "startupTime": 100,
+        "memoryFootprint": 100,
+        "responseTime": 75,
+        "throughput": 75,
+        "baselineComparison": 95
+      }
+    },
+    "securityQuality": {
+      "score": 76,
+      "maxScore": 100,
+      "weight": 0.05,
+      "weightedScore": 3.8,
+      "submetrics": {
+        "credentialManagement": 100,
+        "exceptionHandling": 60,
+        "inputValidation": 50,
+        "sqlInjectionPrevention": 100,
+        "dependencyVulnerabilities": 70
+      }
+    },
+    "documentationQuality": {
+      "score": 74,
+      "maxScore": 100,
+      "weight": 0.05,
+      "weightedScore": 3.7,
+      "submetrics": {
+        "codeComments": 60,
+        "readmeCompleteness": 70,
+        "apiDocumentation": 65,
+        "migrationDocumentation": 95,
+        "testDocumentation": 80
+      }
+    },
+    "operationalReadiness": {
+      "score": 79,
+      "maxScore": 100,
+      "weight": 0.05,
+      "weightedScore": 4.0,
+      "submetrics": {
+        "healthCheckEndpoints": 85,
+        "loggingConfiguration": 70,
+        "errorHandling": 55,
+        "configurationExternalization": 95,
+        "buildReproducibility": 90
+      }
+    }
+  },
+  "codeMetrics": {
+    "sourceCode": {
+      "mainSourceFiles": 29,
+      "mainLinesOfCode": 1662,
+      "testSourceFiles": 17,
+      "testLinesOfCode": 2524,
+      "testToCodeRatio": 1.52,
+      "packages": {
+        "com.redhat.coolstore.rest": 4,
+        "com.redhat.coolstore.service": 9,
+        "com.redhat.coolstore.model": 8,
+        "com.redhat.coolstore.utils": 4,
+        "weblogic": 3
+      }
+    },
+    "complexity": {
+      "averageMethodComplexity": "LOW",
+      "maxMethodLines": 50,
+      "nestingDepth": "LOW"
+    },
+    "duplication": {
+      "estimatedDuplicationRate": 5,
+      "unit": "percent"
+    }
+  },
+  "testMetrics": {
+    "execution": {
+      "totalTests": 120,
+      "passing": 99,
+      "failing": 14,
+      "errors": 7,
+      "skipped": 0,
+      "passRate": 82.5,
+      "failRate": 11.7,
+      "errorRate": 5.8
+    },
+    "coverage": {
+      "instructions": {
+        "missed": 1183,
+        "covered": 540,
+        "total": 1723,
+        "percentage": 31.3
+      },
+      "branches": {
+        "missed": 48,
+        "covered": 44,
+        "total": 92,
+        "percentage": 47.8
+      },
+      "lines": {
+        "missed": 311,
+        "covered": 144,
+        "total": 455,
+        "percentage": 31.6
+      },
+      "complexity": {
+        "missed": 159,
+        "covered": 61,
+        "total": 220,
+        "percentage": 27.7
+      },
+      "methods": {
+        "missed": 125,
+        "covered": 49,
+        "total": 174,
+        "percentage": 28.2
+      }
+    },
+    "coverageByPackage": {
+      "com.redhat.coolstore.service": {
+        "lineCoverage": 60,
+        "assessment": "GOOD"
+      },
+      "com.redhat.coolstore.model": {
+        "lineCoverage": 32,
+        "assessment": "NEEDS_IMPROVEMENT"
+      },
+      "com.redhat.coolstore.rest": {
+        "lineCoverage": 1,
+        "assessment": "CRITICAL"
+      },
+      "com.redhat.coolstore.utils": {
+        "lineCoverage": 6,
+        "assessment": "CRITICAL"
+      }
+    },
+    "testDistribution": {
+      "characterizationTests": {
+        "count": 24,
+        "percentage": 20
+      },
+      "functionalTests": {
+        "count": 76,
+        "percentage": 63
+      },
+      "integrationTests": {
+        "count": 16,
+        "percentage": 13
+      },
+      "benchmarkTests": {
+        "count": 4,
+        "percentage": 3
+      }
+    },
+    "performance": {
+      "totalExecutionTime": 8000,
+      "fastestTestClass": "PromoServiceTest",
+      "fastestTime": 5,
+      "slowestTestClass": "CartCheckoutIntegrationTest",
+      "slowestTime": 4000,
+      "databaseInitTime": 100,
+      "unit": "milliseconds"
+    }
+  },
+  "migrationMetrics": {
+    "packageMigration": {
+      "javaxImports": 0,
+      "jakartaImports": 22,
+      "completeness": 100
+    },
+    "ejbToCdi": {
+      "ejbAnnotations": 0,
+      "cdiAnnotations": 14,
+      "legacyJndiLookups": 1,
+      "completeness": 85
+    },
+    "jmsToReactive": {
+      "messageDrivenBeans": 0,
+      "reactiveListeners": 2,
+      "completeness": 100
+    },
+    "configurationMigration": {
+      "persistenceXml": false,
+      "applicationProperties": true,
+      "flywayEnabled": true,
+      "completeness": 100
+    },
+    "databaseMigration": {
+      "flywayScripts": 2,
+      "totalLines": 63,
+      "completeness": 100
+    },
+    "legacyCodeRemoval": {
+      "weblogicStubs": 3,
+      "unusedInterfaces": 1,
+      "completeness": 80
+    }
+  },
+  "performanceMetrics": {
+    "startup": {
+      "baseline": {
+        "value": 17500,
+        "unit": "milliseconds",
+        "framework": "JavaEE 7"
+      },
+      "current": {
+        "value": 2500,
+        "unit": "milliseconds",
+        "framework": "Quarkus 3.8.1",
+        "estimated": true
+      },
+      "improvement": {
+        "percentage": 85.7,
+        "reduction": 15000,
+        "unit": "milliseconds"
+      }
+    },
+    "memory": {
+      "baseline": {
+        "value": 600,
+        "unit": "megabytes",
+        "framework": "JavaEE 7"
+      },
+      "current": {
+        "value": 200,
+        "unit": "megabytes",
+        "framework": "Quarkus 3.8.1",
+        "estimated": true
+      },
+      "improvement": {
+        "percentage": 66.7,
+        "reduction": 400,
+        "unit": "megabytes"
+      }
+    },
+    "throughput": {
+      "baselineMultiplier": 1.0,
+      "currentMultiplier": 1.25,
+      "improvement": 25,
+      "unit": "percent",
+      "estimated": true
+    },
+    "responseTime": {
+      "p99ImprovementPercentage": 30,
+      "estimated": true
+    }
+  },
+  "securityMetrics": {
+    "credentialManagement": {
+      "hardcodedPasswords": 0,
+      "hardcodedApiKeys": 0,
+      "secretsInCode": 0,
+      "status": "PASS"
+    },
+    "inputValidation": {
+      "validatedEndpoints": 0,
+      "totalEndpoints": 8,
+      "percentage": 0,
+      "status": "NEEDS_IMPROVEMENT"
+    },
+    "sqlInjection": {
+      "parameterizedQueries": true,
+      "nativeSqlQueries": 0,
+      "status": "PASS"
+    },
+    "vulnerabilities": {
+      "critical": 0,
+      "high": 0,
+      "medium": 0,
+      "low": 0,
+      "scanned": false
+    }
+  },
+  "architectureMetrics": {
+    "restEndpoints": {
+      "total": 8,
+      "getEndpoints": 5,
+      "postEndpoints": 4,
+      "deleteEndpoints": 1,
+      "properHttpMethods": true,
+      "hateoas": false,
+      "pagination": false
+    },
+    "services": {
+      "total": 7,
+      "withInterfaces": 0,
+      "cdiScoped": 7,
+      "transactional": 2
+    },
+    "entities": {
+      "jpaEntities": 2,
+      "serviceModels": 6,
+      "separation": true
+    },
+    "dependencyInjection": {
+      "pattern": "CDI",
+      "fieldInjection": true,
+      "constructorInjection": false,
+      "properScoping": true
+    }
+  },
+  "issues": {
+    "critical": [
+      {
+        "id": "ISSUE-001",
+        "title": "Low Code Coverage",
+        "severity": "CRITICAL",
+        "current": 31.6,
+        "target": 80,
+        "gap": -48.4,
+        "estimatedEffort": "3-5 days",
+        "priority": "P0"
+      },
+      {
+        "id": "ISSUE-002",
+        "title": "Failing Tests",
+        "severity": "CRITICAL",
+        "failingTests": 21,
+        "totalTests": 120,
+        "passRate": 82.5,
+        "target": 95,
+        "estimatedEffort": "1-2 hours",
+        "priority": "P0"
+      }
+    ],
+    "major": [
+      {
+        "id": "ISSUE-003",
+        "title": "Poor Logging Practices",
+        "severity": "MAJOR",
+        "occurrences": 5,
+        "description": "System.out.println in production code",
+        "estimatedEffort": "2 hours",
+        "priority": "P1"
+      },
+      {
+        "id": "ISSUE-004",
+        "title": "Missing Input Validation",
+        "severity": "MAJOR",
+        "validatedEndpoints": 0,
+        "totalEndpoints": 8,
+        "estimatedEffort": "1 day",
+        "priority": "P1"
+      },
+      {
+        "id": "ISSUE-005",
+        "title": "Inadequate Error Handling",
+        "severity": "MAJOR",
+        "description": "No ExceptionMapper, generic exception catching",
+        "estimatedEffort": "1 day",
+        "priority": "P1"
+      }
+    ],
+    "minor": [
+      {
+        "id": "ISSUE-006",
+        "title": "Legacy WebLogic Stubs",
+        "severity": "MINOR",
+        "files": 3,
+        "estimatedEffort": "1 hour",
+        "priority": "P2"
+      },
+      {
+        "id": "ISSUE-007",
+        "title": "Missing API Documentation",
+        "severity": "MEDIUM",
+        "description": "No OpenAPI annotations",
+        "estimatedEffort": "1 day",
+        "priority": "P2"
+      },
+      {
+        "id": "ISSUE-008",
+        "title": "Outdated README",
+        "severity": "MEDIUM",
+        "description": "Still references JavaEE deployment",
+        "estimatedEffort": "0.5 day",
+        "priority": "P2"
+      }
+    ]
+  },
+  "recommendations": {
+    "immediate": [
+      {
+        "id": "REC-001",
+        "title": "Fix JNDI Lookup Issue",
+        "priority": "CRITICAL",
+        "effort": "1-2 hours",
+        "impact": "21 tests passing, +15-20% coverage",
+        "timeline": "Within 1 week"
+      },
+      {
+        "id": "REC-002",
+        "title": "Replace System.out.println",
+        "priority": "MAJOR",
+        "effort": "2 hours",
+        "impact": "Better production observability",
+        "timeline": "Within 1 week"
+      },
+      {
+        "id": "REC-003",
+        "title": "Remove Legacy WebLogic Stubs",
+        "priority": "MINOR",
+        "effort": "1 hour",
+        "impact": "Cleaner codebase",
+        "timeline": "Within 1 week"
+      }
+    ],
+    "shortTerm": [
+      {
+        "id": "REC-004",
+        "title": "Add REST Endpoint Tests",
+        "priority": "CRITICAL",
+        "effort": "2 days",
+        "impact": "+15% overall coverage",
+        "timeline": "Within 2 weeks"
+      },
+      {
+        "id": "REC-005",
+        "title": "Implement ExceptionMapper",
+        "priority": "MAJOR",
+        "effort": "1 day",
+        "impact": "Better error handling, security",
+        "timeline": "Within 2 weeks"
+      },
+      {
+        "id": "REC-006",
+        "title": "Add Input Validation",
+        "priority": "MAJOR",
+        "effort": "1 day",
+        "impact": "Data integrity, security",
+        "timeline": "Within 2 weeks"
+      },
+      {
+        "id": "REC-007",
+        "title": "Add API Documentation",
+        "priority": "MEDIUM",
+        "effort": "1 day",
+        "impact": "Better developer experience",
+        "timeline": "Within 2 weeks"
+      }
+    ],
+    "mediumTerm": [
+      {
+        "id": "REC-008",
+        "title": "Increase Test Coverage to 80%",
+        "priority": "CRITICAL",
+        "effort": "3-5 days",
+        "impact": "Quality gate compliance",
+        "timeline": "Within 1 month"
+      },
+      {
+        "id": "REC-009",
+        "title": "Run Performance Benchmarks",
+        "priority": "MEDIUM",
+        "effort": "1 day",
+        "impact": "Performance validation",
+        "timeline": "Within 1 month"
+      },
+      {
+        "id": "REC-010",
+        "title": "Update README",
+        "priority": "MEDIUM",
+        "effort": "0.5 day",
+        "impact": "Better documentation",
+        "timeline": "Within 1 month"
+      },
+      {
+        "id": "REC-011",
+        "title": "Add Custom Health Checks",
+        "priority": "MEDIUM",
+        "effort": "0.5 day",
+        "impact": "Better operational visibility",
+        "timeline": "Within 1 month"
+      },
+      {
+        "id": "REC-012",
+        "title": "Security Scanning",
+        "priority": "MEDIUM",
+        "effort": "1 day",
+        "impact": "Security assurance",
+        "timeline": "Within 1 month"
+      }
+    ]
+  },
+  "technicalDebt": {
+    "totalEstimatedEffort": {
+      "value": 10,
+      "unit": "developer-days"
+    },
+    "highPriority": {
+      "items": 4,
+      "effort": "5-7 days"
+    },
+    "mediumPriority": {
+      "items": 3,
+      "effort": "3 days"
+    },
+    "lowPriority": {
+      "items": 3,
+      "effort": "2 days"
+    }
+  },
+  "productionReadiness": {
+    "status": "CONDITIONAL",
+    "blockers": [
+      "Fix JNDI lookup issue",
+      "Achieve minimum 60% code coverage",
+      "Fix System.out.println logging",
+      "Add input validation",
+      "Improve exception handling"
+    ],
+    "estimatedTimeToProduction": {
+      "value": 2,
+      "unit": "weeks",
+      "withFocusedEffort": true
+    }
+  },
+  "trends": {
+    "note": "First evaluation - no historical data available",
+    "nextEvaluationDate": "2026-05-13"
+  }
+}

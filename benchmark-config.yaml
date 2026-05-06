@@ -1,0 +1,126 @@
+# Benchmark Configuration
+# This file contains configuration for all benchmark suites
+
+benchmark:
+  version: "1.0.0"
+
+  # Application configuration
+  application:
+    name: "Red Hat Coolstore"
+    version: "1.0.0-SNAPSHOT"
+    framework: "Quarkus 3.8.1"
+    java_version: "17"
+    base_url: "http://localhost:8080"
+
+  # Startup benchmarks
+  startup:
+    iterations: 5
+    warmup_seconds: 2
+    measurement_mode: "cold_start"
+    jvm_args: "-Xmx512m -Xms256m"
+
+  # Memory benchmarks
+  memory:
+    duration_seconds: 60
+    sampling_interval_seconds: 5
+    heap_configurations:
+      - "-Xmx256m -Xms128m"
+      - "-Xmx512m -Xms256m"
+      - "-Xmx1024m -Xms512m"
+
+  # Throughput benchmarks
+  throughput:
+    tool: "wrk"  # wrk or ab
+    duration_seconds: 30
+    threads: 4
+    connections: 100
+    high_load_connections: 500
+
+    endpoints:
+      - path: "/services/products/"
+        name: "products-list"
+      - path: "/services/products/329299"
+        name: "product-detail"
+      - path: "/services/cart/test-cart"
+        name: "cart-get"
+      - path: "/services/orders/"
+        name: "orders-list"
+
+  # Concurrency tests
+  concurrency:
+    levels: [1, 10, 50, 100, 200, 500]
+    duration_seconds: 10
+    test_endpoint: "/services/products/"
+
+  # JMH benchmarks
+  jmh:
+    warmup_iterations: 3
+    warmup_time_seconds: 5
+    measurement_iterations: 5
+    measurement_time_seconds: 10
+    forks: 1
+    threads: 1
+    modes:
+      - "Throughput"
+      - "AverageTime"
+    output_time_unit: "MILLISECONDS"
+
+    benchmarks:
+      - class: "ProductEndpointBenchmark"
+        tests:
+          - "benchmarkListAllProducts"
+          - "benchmarkGetProductById"
+          - "benchmarkMixedProductReads"
+
+      - class: "CartEndpointBenchmark"
+        tests:
+          - "benchmarkGetCart"
+          - "benchmarkAddToCart"
+          - "benchmarkRemoveFromCart"
+          - "benchmarkFullCartWorkflow"
+
+      - class: "OrderEndpointBenchmark"
+        tests:
+          - "benchmarkListAllOrders"
+          - "benchmarkGetOrderById"
+
+      - class: "ServiceLayerBenchmark"
+        tests:
+          - "benchmarkGetAllProducts"
+          - "benchmarkGetProductByItemId"
+          - "benchmarkPriceShoppingCart"
+
+  # Performance baselines (JavaEE 7)
+  baseline:
+    framework: "JavaEE 7 (WildFly)"
+    startup_time_ms: 18000  # 18 seconds
+    memory_rss_mb: 600
+    throughput_rps: 3500
+    latency_p99_ms: 85
+
+  # Performance targets (Quarkus 3.8.1)
+  targets:
+    startup_time_ms: 3000  # 3 seconds
+    startup_improvement_percent: 83
+    memory_rss_mb: 200
+    memory_reduction_percent: 67
+    throughput_rps: 5000
+    throughput_improvement_percent: 43
+    latency_p99_ms: 50
+    latency_improvement_percent: 41
+
+  # Reporting
+  reporting:
+    output_dir: "benchmark-results"
+    report_file: "BENCHMARK_RESULTS.md"
+    format: "markdown"
+    include_graphs: false
+    include_comparison: true
+
+  # Quality gates
+  quality_gates:
+    max_startup_time_ms: 5000
+    max_memory_mb: 350
+    min_throughput_rps: 2000
+    max_latency_p99_ms: 100
+    max_performance_regression_percent: 10
