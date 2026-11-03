@@ -118,3 +118,35 @@ evidence and recorded as explicit assumptions in the prompt rather than blocking
 + unit + integration tests, detailed plan, audit-logging-library 1.0.0 → 2.0.0 upgrade (Konveyor mandatory rules).
 
 ---
+
+### Phase 3: Migration Planning - COMPLETED
+**Timestamp**: 2026-11-03T20:36:00Z
+
+**Outputs**
+- `mig-plan-workspace/tasks.md` — 11 task groups, 68 checklist subtasks (incl. test-gen / containerize / deploy / docs hooks)
+- `mig-plan-workspace/UserStory.md` — 8 user stories with acceptance criteria, dependencies, test cases
+- Specification + design remain in `mig-prompt-workspace/migration-prompt.md` (per skill guidance, no separate spec/design files)
+
+**Statistics**
+- User Stories: 8
+- Task Groups: 11
+- Subtasks: 68
+- Estimated effort: 52 story points
+
+**Plan shape** — dependency-ordered waves derived from the rgctl roadmap (REST rank 1, utils rank 3, services rank 5, model rank 7):
+1. Build foundation (Quarkus BOM, Java 21, extension set, dead-code deletion)
+2. Persistence (Jakarta Persistence 3.1, `hibernate_sequence`, Flyway at start-up)
+3. Domain services (EJB → CDI, `@Stateful` cart → `cartId`-keyed store, pricing preserved)
+4. Messaging (JMS topic → Kafka with two consumer groups)
+5. REST (Jakarta REST, `/services` contract frozen)
+6. Static SPA + SmallRye Health (JSP removed)
+7. audit-logging-library 1.0.0 → 2.0.0 (Konveyor mandatory rules)
+8. Tests, 9. Containerization (UBI 9), 10. OpenShift deployment, 11. Docs + final verification
+
+**Risk register carried into execution**
+- Kafka consumer-group mapping must preserve JMS topic fan-out (two groups) — highest behavioural risk
+- Cart state moves from node-local `@Stateful` to a process-local `cartId` store (documented change)
+- Hibernate 6 sequence naming vs the legacy `hibernate_sequence` schema
+- No JDK/Maven/Podman/cluster in the harness → build and deploy verification is artefact + static-check based
+
+---
