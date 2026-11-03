@@ -1,0 +1,19 @@
+# build output
+target/
+# version control and tooling
+.git/
+.github/
+.vscode/
+.idea/
+.project
+.classpath
+.settings/
+# analysis artefacts
+.rgctl/
+# migration workspaces (documentation only, not runtime content)
+migiq-workspace/
+mig-plan-workspace/
+mig-prompt-workspace/
+mig-execute-workspace/
+# local runtime data
+*.log

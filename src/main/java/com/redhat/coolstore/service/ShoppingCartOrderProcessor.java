@@ -1,35 +1,41 @@
 package com.redhat.coolstore.service;
 
-import java.util.logging.Logger;
-import javax.ejb.Stateless;
-import javax.annotation.Resource;
-import javax.inject.Inject;
-import javax.jms.JMSContext;
-import javax.jms.Topic;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+
+import org.eclipse.microprofile.reactive.messaging.Channel;
+import org.eclipse.microprofile.reactive.messaging.Emitter;
+import org.jboss.logging.Logger;
 
 import com.redhat.coolstore.model.ShoppingCart;
 import com.redhat.coolstore.utils.Transformers;
 
-@Stateless
-public class ShoppingCartOrderProcessor  {
+/**
+ * Publishes an order on the {@code orders} channel.
+ *
+ * <p>Replaces the JMS producer that sent to {@code java:/topic/orders} through an
+ * injected {@code JMSContext}. The message body is byte-for-byte the same JSON
+ * payload the JMS topic carried, so downstream consumers keep working.</p>
+ */
+@ApplicationScoped
+public class ShoppingCartOrderProcessor {
 
     @Inject
     Logger log;
 
-
     @Inject
-    private transient JMSContext context;
+    @Channel("orders-out")
+    Emitter<String> ordersEmitter;
 
-    @Resource(lookup = "java:/topic/orders")
-    private Topic ordersTopic;
-
-    
-  
-    public void  process(ShoppingCart cart) {
+    public void process(ShoppingCart cart) {
         log.info("Sending order from processor: ");
-        context.createProducer().send(ordersTopic, Transformers.shoppingCartToJson(cart));
+        String payload = Transformers.shoppingCartToJson(cart);
+        ordersEmitter.send(payload).whenComplete((ok, failure) -> {
+            if (failure != null) {
+                // Checkout must not fail because the broker is unavailable; the
+                // cart is priced and returned either way (same as the JMS path).
+                log.errorf(failure, "Could not publish order to the orders topic: %s", failure.getMessage());
+            }
+        });
     }
-
-
-
 }

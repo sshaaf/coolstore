@@ -1,48 +1,50 @@
 package com.redhat.coolstore.service;
 
 import java.util.List;
-import java.util.logging.Logger;
 
-import javax.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import jakarta.persistence.EntityManager;
+import jakarta.transaction.Transactional;
 
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.CriteriaQuery;
-import javax.persistence.criteria.Root;
+import org.jboss.logging.Logger;
 
-import javax.ejb.Stateless;
-import javax.persistence.EntityManager;
+import com.redhat.coolstore.model.CatalogItemEntity;
+import com.redhat.coolstore.model.InventoryEntity;
 
-import com.redhat.coolstore.model.*;
-
-@Stateless
+/**
+ * Catalog read/write access. Replaces the {@code @Stateless} EJB of the Java EE
+ * application; container-managed transactions become {@code @Transactional}.
+ */
+@ApplicationScoped
 public class CatalogService {
 
     @Inject
     Logger log;
 
     @Inject
-    private EntityManager em;
+    EntityManager em;
 
     public CatalogService() {
     }
 
     public List<CatalogItemEntity> getCatalogItems() {
-        CriteriaBuilder cb = em.getCriteriaBuilder();
-        CriteriaQuery<CatalogItemEntity> criteria = cb.createQuery(CatalogItemEntity.class);
-        Root<CatalogItemEntity> member = criteria.from(CatalogItemEntity.class);
-        criteria.select(member);
-        return em.createQuery(criteria).getResultList();
+        return em.createQuery("select c from CatalogItemEntity c", CatalogItemEntity.class).getResultList();
     }
 
     public CatalogItemEntity getCatalogItemById(String itemId) {
         return em.find(CatalogItemEntity.class, itemId);
     }
 
+    @Transactional
     public void updateInventoryItems(String itemId, int deducts) {
-        InventoryEntity inventoryEntity = getCatalogItemById(itemId).getInventory();
-        int currentQuantity = inventoryEntity.getQuantity();
-        inventoryEntity.setQuantity(currentQuantity-deducts);
+        CatalogItemEntity catalogItem = getCatalogItemById(itemId);
+        if (catalogItem == null || catalogItem.getInventory() == null) {
+            log.warnf("Cannot update inventory for unknown item %s", itemId);
+            return;
+        }
+        InventoryEntity inventoryEntity = catalogItem.getInventory();
+        inventoryEntity.setQuantity(inventoryEntity.getQuantity() - deducts);
         em.merge(inventoryEntity);
     }
-
 }

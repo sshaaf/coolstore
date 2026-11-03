@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: coolstore-monolith
+  labels:
+    app: coolstore-monolith
+spec:
+  selector:
+    app: coolstore-monolith
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

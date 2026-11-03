@@ -1,0 +1,14 @@
+# Requires the AMQ Streams (Strimzi) operator in the cluster.
+# The JMS topic "topic/orders" becomes the Kafka topic "orders".
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: orders
+  labels:
+    strimzi.io/cluster: coolstore-kafka
+spec:
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: 604800000
+    cleanup.policy: delete

@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coolstore-config
+data:
+  DB_URL: "jdbc:postgresql://coolstore-db:5432/postgresDB"
+  KAFKA_BOOTSTRAP_SERVERS: "coolstore-kafka-kafka-bootstrap:9092"
+  AUDIT_STREAM_HOST: "audit-collector.coolstore.svc.cluster.local"
+  AUDIT_STREAM_PORT: "6514"
+  QUARKUS_HTTP_PORT: "8080"
+  QUARKUS_LOG_LEVEL: "INFO"

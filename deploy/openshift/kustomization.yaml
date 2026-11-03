@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: coolstore
+
+resources:
+  - configmap.yaml
+  - secret.yaml
+  - postgres.yaml
+  - kafka-topic.yaml
+  - deployment.yaml
+  - service.yaml
+  - route.yaml
+
+commonLabels:
+  app.kubernetes.io/part-of: coolstore
+  app.kubernetes.io/component: monolith
+
+images:
+  - name: quay.io/example/coolstore-monolith
+    newTag: "1.0.0"

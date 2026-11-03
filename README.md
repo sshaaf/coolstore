@@ -1,182 +1,200 @@
-# CoolStore Monolith
+# CoolStore Monolith (Quarkus)
 
-This repository has the complete coolstore monolith built as a Java EE 7 application. To deploy it on JBoss 7.4 follow the instructions below
+The CoolStore storefront, migrated from a Java EE 7 application deployed on JBoss EAP 7.4 to
+**Quarkus 3.20 (Jakarta EE 10) on Java 21**, packaged as a container image for **Red Hat OpenShift**.
 
+The AngularJS single-page application is unchanged and is served from the same origin as the REST API,
+so the browser keeps calling `/services/*` exactly as before.
 
-## Pre requisite
+| | Before | After |
+|---|---|---|
+| Runtime | JBoss EAP 7.4 (WAR, EJB container) | Quarkus 3.20 fast-jar (JVM) |
+| Java | 8 source level (17 runtime) | 21 |
+| APIs | Java EE 7 (`javax.*`) | Jakarta EE 10 (`jakarta.*`) |
+| Persistence | JPA 2.1 + JNDI datasource + Flyway 4 bean | Hibernate ORM 6 + Agroal datasource + Quarkus Flyway |
+| Messaging | JMS topic `topic/orders` + 2 MDBs | Kafka topic `orders` + 2 Reactive Messaging consumers |
+| Remoting | `@Remote` EJB over WildFly JNDI | plain CDI injection |
+| Audit | `audit-logging-library` 1.0.0 (file sink, unused) | `audit-logging-library` 2.0.0 (`StreamableAuditLogger`, TCP, async) |
+| Deployment | manual `deploy ROOT.war` | `Containerfile` (UBI 9) + `deploy/openshift` (kustomize) |
 
-* JBoss 7.4 zip installation
-* Keycloak v20.0.5 zip installation
-* podman or docker, tested with podman version 4.3.1
-* maven, tested with maven version 3.8.5
-* OpenJDK, tested with version 17.0.5
+Architecture and migration decisions are documented in
+`mig-prompt-workspace/migration-prompt.md`; the plan and execution record live in
+`mig-plan-workspace/` and `mig-execute-workspace/`.
 
-## Start a postgreSQL database
+## Prerequisites
 
-```
-podman run --name myPostgresDb \
-   -p 5432:5432 \
-   -e POSTGRES_USER=postgresUser \
-   -e POSTGRES_PASSWORD=postgresPW \
-   -e POSTGRES_DB=postgresDB \
-   -d postgres
-```
+- JDK 21 and Maven 3.9+ (build), or Podman/Docker (container build)
+- PostgreSQL 15 (schema is created by Flyway)
+- Kafka 3.x (AMQ Streams / Strimzi) for the order pipeline
+- Optional: Keycloak for the SPA's SSO (`src/main/resources/META-INF/resources/keycloak.json`)
 
-## Start keycloak
+## Build and run
 
-Extract keycloak-20.0.5.zip
+```bash
+# unit + integration tests, then package the fast-jar
+mvn verify
 
-```cd keycloak-20.0.5```
+# dev mode (live reload) - needs PostgreSQL and Kafka reachable
+mvn quarkus:dev
 
-Start keycloak in dev mode listening on port 8081
-
-``` ./bin/kc.sh start-dev --http-port=8081 ```
-
-Open http://127.0.0.1:8081 in your browser
-
-
-Set an administrator username and password, then login to keycloak using these credentials
-
-Click on the "Master" dropdown, and select "Create Realm"
-
-Click on "Browse" and locate the file realm-export.json in this repo.
-
-Click on "Create" to create the "eap" realm
-
-Click on "Users" and "Create new user"
-
-Enter a username, e.g. "user1" and click on "Create"
-
-From the next form, click on the "Credentials" tab and "Set password"
-
-Set a password and password confirmation, and unselect "Temporary"
-
-Click on "Save" to store the password.
-
-Keycloak is now configured correctly
-
-## Configure JBoss 7.4
-
-Unzip jboss-eap-7.4.0.zip
-
-``` cd jboss-eap-7.4/jboss-eap-7.4 ```
-
-Create the folder modules/org/postgresql/main
-
-``` mkdir -p modules/org/postgresql/main ```
-
-
-Download the postgres jdbc driver from https://jdbc.postgresql.org/download/  e.g. https://jdbc.postgresql.org/download/postgresql-42.5.4.jar
-
- Copy postgres jar file to modules/org/postgresql/main
-
-create module.xml  -- ensure the filename matches the filename downloaded in the previous step
-
-```
-cat <<EOF > modules/org/postgresql/main/module.xml
-<?xml version="1.0" encoding="UTF-8"?>
-<module xmlns="urn:jboss:module:1.0" name="org.postgresql">
- <resources>
- <resource-root path="postgresql-42.5.4.jar"/>
- </resources>
- <dependencies>
- <module name="javax.api"/>
- <module name="javax.transaction.api"/>
- </dependencies>
-</module>
-EOF
+# run the packaged application
+java -jar target/quarkus-app/quarkus-run.jar
 ```
 
+### Local dependencies
 
-Start JBoss EAP 7.4 in full high availability mode
+```bash
+podman run -d --name coolstore-db -p 5432:5432 \
+  -e POSTGRES_USER=postgresUser -e POSTGRES_PASSWORD=postgresPW \
+  -e POSTGRES_DB=postgresDB postgres:15
 
-From the jboss-eap-7.4 folder run:
-
-```./jboss-eap-7.4-2/bin/standalone.sh -c standalone-full-ha.xml  -Djboss.node.name=node1 ```
-
-In another terminal, start the jboss cli, from the jboss7.4 installation folder run 
-
-```  ./bin/jboss-cli.sh --connect ```
-
-Run the following commands:
-
-```
-/subsystem=datasources/jdbc-driver=postgresql:add(driver-name=postgresql,driver-module-name=org.postgresql)
-```
-
-```
- data-source add --name=CoolstoreDS --jndi-name=java:jboss/datasources/CoolstoreDS --driver-name=postgresql --connection-url=jdbc:postgresql://127.0.0.1:5432/postgresDB --user-name=postgresUser --password=postgresPW
- ```
-
-```
-jms-topic add --topic-address=topic.orders --entries=topic/orders
-
-/subsystem=messaging-activemq/server=default:write-attribute(name=cluster-password, value=password)
+# any single-node Kafka works; the topic "orders" is created on demand
+podman run -d --name coolstore-kafka -p 9092:9092 \
+  -e KAFKA_NODE_ID=1 -e KAFKA_PROCESS_ROLES=broker,controller \
+  -e KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093 \
+  -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092 \
+  -e KAFKA_CONTROLLER_QUORUM_VOTERS=1@localhost:9093 \
+  -e KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER \
+  -e KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT \
+  -e KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1 apache/kafka:3.8.0
 ```
 
-## Build and deploy the application
+Open <http://localhost:8080>.
 
-From the root of this repo, run: 
+The `audit-logging-library:2.0.0` artifact is not published to a reachable Maven repository, so it is
+vendored in `lib/` and referenced with `system` scope (the same pattern the Java EE build used).
 
-`mvn package`
+## Configuration
 
-Set the JBOSS_HOME env variable e.g. 
+All settings are standard Quarkus properties and can be overridden with environment variables
+(see `src/main/resources/application.properties`).
 
-`export JBOSS_HOME=~/jboss-eap-7.4/jboss-eap-7.4`
+| Property | Env var | Default | Purpose |
+|---|---|---|---|
+| `quarkus.datasource.jdbc.url` | `DB_URL` | `jdbc:postgresql://localhost:5432/postgresDB` | PostgreSQL JDBC URL |
+| `quarkus.datasource.username` | `DB_USER` | `postgresUser` | DB user |
+| `quarkus.datasource.password` | `DB_PASSWORD` | `postgresPW` | DB password |
+| `kafka.bootstrap.servers` | `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9092` | Kafka bootstrap |
+| `audit.stream.host` | `AUDIT_STREAM_HOST` | `localhost` | Audit collector host |
+| `audit.stream.port` | `AUDIT_STREAM_PORT` | `6514` | Audit collector TCP port |
+| `audit.stream.enabled` | — | `true` | Set `false` to drop audit events |
 
-Run the jboss cli: 
+`quarkus.flyway.migrate-at-start=true` applies `src/main/resources/db/migration` on boot with
+`baseline-on-migrate`, so an existing EAP-era database is adopted without manual steps.
 
-` $JBOSS_HOME/bin/jboss-cli.sh`
+## API contract (unchanged)
 
-Run the following command to deploy the application:
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/services/products` | catalog list |
+| GET | `/services/products/{itemId}` | single product (`204` when unknown — legacy behaviour) |
+| GET | `/services/cart/{cartId}` | cart (empty cart for unknown ids) |
+| POST | `/services/cart/{cartId}/{itemId}/{quantity}` | add item, dedupes by item id |
+| DELETE | `/services/cart/{cartId}/{itemId}/{quantity}` | reduce/remove item |
+| POST | `/services/cart/{cartId}/{tmpId}` | transfer a temporary cart into the user cart |
+| POST | `/services/cart/checkout/{cartId}` | publish order, empty cart |
+| GET | `/services/orders` | order history |
+| GET | `/services/orders/{orderId}` | single order |
 
- `deploy ./target/ROOT.war`
+Operational endpoints: `/q/health`, `/q/health/live`, `/q/health/ready`, `/q/metrics`, `/q/openapi`.
 
-Navigate to http://127.0.0.1:8080
+### Messaging contract
 
-![coolstore](assets/coolstore.png "coolstore")
+Checkout publishes one JSON document to the Kafka topic `orders`:
 
-From the coostore, click on "Sign in" in the top right
+```json
+{"orderValue":10.49,"customerName":"Karl Svensson","customerEmail":"karl@gmail.com",
+ "retailPrice":10.0,"discount":-2.5,"shippingFee":2.99,"shippingDiscount":0.0,
+ "items":[{"productSku":"329299","quantity":1}]}
+```
 
-Login with the user credentials created on Keycloak, e.g. user1
+Two consumer groups subscribe to the same topic, preserving the fan-out of the former JMS topic:
 
-You should now be able to complete the checkout process.
+- `coolstore-order-service` (`orders-in`) — persists the order, decrements inventory
+- `coolstore-inventory-notification` (`orders-inventory`) — warns when projected stock drops below 50
 
-## Start a second instance.
+## Testing
 
-Make a copy of the jboss-eap-7.4/jboss-eap-7.4 e.g jboss-eap-7.4/jboss-eap-7.4-2
+- `ShippingServiceTest`, `PromoServiceTest`, `TransformersTest` — pure unit tests pinning the pricing,
+  shipping, promotion and wire-format behaviour of the legacy application
+- `CartEndpointTest` — `@QuarkusTest` + RestAssured characterization tests for the HTTP contract
+  (H2 in PostgreSQL mode, real Flyway seed data)
+- `OrderMessageConsumerTest` — consumer behaviour: order persistence, inventory decrement, unknown item tolerance
+- `AuditServiceTest` — audit 2.0.0 API usage and failure tolerance
 
-Within the jboss-eap-7.4 folder you should now see jboss-eap-7.4 and jboss-eap-7.4-2
+The test profile uses an in-memory messaging connector, so no broker is required for `mvn verify`.
 
-In the jboss-eap-7.4-2, remove the contents of standalone/data/activemq
+## Container
 
-From the jboss-eap-7.4 folder run:
+```bash
+podman build -t quay.io/example/coolstore-monolith:1.0.0 .
+podman run -p 8080:8080 \
+  -e DB_URL=jdbc:postgresql://host:5432/postgresDB -e DB_USER=postgresUser -e DB_PASSWORD=postgresPW \
+  -e KAFKA_BOOTSTRAP_SERVERS=kafka:9092 \
+  quay.io/example/coolstore-monolith:1.0.0
+```
 
-`./jboss-eap-7.4-2/bin/standalone.sh -c standalone-full-ha.xml -Djboss.socket.binding.port-offset=100  -Djboss.node.name=node2`
+The image is a multi-stage UBI 9 build (`ubi9/openjdk-21` → `ubi9/openjdk-21-runtime`) and runs as
+non-root UID 185 on port 8080.
 
-## Monitor the logs
+## Deploy to OpenShift
 
-Open up two terminals in the jboss-eap-7.4 folder
+```bash
+oc new-project coolstore
+# build the image with OpenShift (or push it to your registry first)
+oc new-build --name coolstore-monolith --binary --strategy docker
+oc start-build coolstore-monolith --from-dir=. --follow
+oc apply -k deploy/openshift
+oc get route coolstore-monolith -o jsonpath='{.spec.host}'
+```
 
-Run:
+`deploy/openshift` contains the Deployment (2 replicas, rolling update, non-root, probes, limits),
+Service, edge-TLS Route, ConfigMap, DB Secret, PostgreSQL deployment/PVC and the `orders` `KafkaTopic`
+(requires the AMQ Streams/Strimzi operator).
 
-`tail -f jboss-eap-7.4/standalone/log/server.log` 
+### Rollout and rollback
 
-in one terminal and 
+```bash
+oc rollout status deploy/coolstore-monolith
+oc rollout undo deploy/coolstore-monolith        # back to the previous image
+oc logs -f deploy/coolstore-monolith
+```
 
-`tail -f jboss-eap-7.4-2/standalone/log/server.log` 
+Rollback to the pre-migration application is the previous EAP image plus `ROOT.war`; the database schema
+is unchanged by this migration, so no data rollback is required.
 
-in the other
+## Migration notes and known follow-ups
 
-## Testing clustering
+- **Cart state** was held in a `@Stateful` EJB per HTTP session. It now lives in a `cartId`-keyed
+  `CartStore` inside the application; the HTTP contract is identical, but with more than one replica a
+  shopper needs session affinity until the store is moved to a shared cache (e.g. Redis).
+- **JMS topic fan-out** is reproduced with two Kafka consumer groups. A single group would divide the
+  orders between handlers and silently lose work.
+- **Hibernate 6** changed default sequence naming; `Order`/`OrderItem` explicitly bind the legacy
+  `hibernate_sequence` so the existing schema keeps working.
+- **JSP is gone**: `index.jsp` became `index.html` (its only scriptlet opened a session), and
+  `health.jsp` is replaced by SmallRye Health under `/q/health`.
+- **Audit logging** is now real: `StreamableAuditLogger` streams `AuditEvent` records over TCP and
+  never blocks checkout when the collector is unavailable.
+- **Follow-ups**: migrate the AngularJS front end (EOL), replace the process-local cart store with Redis,
+  publish `audit-logging-library` to an internal repository to drop `system` scope, and add a cluster-level
+  end-to-end/performance test.
 
-If you perform a test checkout of an item, you should see both nodes processing the messages in the logs e.g.
+## Repository layout
 
 ```
-2023-03-02 14:41:23,131 INFO  [stdout] (Thread-3 (ActiveMQ-client-global-threads)) 
-2023-03-02 14:41:23,131 INFO  [stdout] (Thread-3 (ActiveMQ-client-global-threads)) Message recd !
-2023-03-02 14:41:23,131 INFO  [stdout] (Thread-3 (ActiveMQ-client-global-threads)) Received order: {"orderValue":10.49,"customerName":"Karl Svensson","customerEmail":"karl@gmail.com","retailPrice":10.0,"discount":-2.5,"shippingFee":2.99,"shippingDiscount":0.0,"items":[{"productSku":"329299","quantity":1}]}
-2023-03-02 14:41:23,132 INFO  [stdout] (Thread-3 (ActiveMQ-client-global-threads)) Order object is Order [orderId=0, customerName=Karl Svensson, customerEmail=karl@gmail.com, orderValue=10.49, retailPrice=10.0, discount=-2.5, shippingFee=2.99, shippingDiscount=0.0, itemList=[OrderItem [productId=329299, quantity=1]]]
-
-
+src/main/java/com/redhat/coolstore/
+  model/      JPA entities and DTOs
+  rest/       JAX-RS resources (/services)
+  service/    catalog, cart, pricing, shipping, messaging
+  audit/      audit-logging-library 2.0.0 integration
+  utils/      entity/DTO transformations and order JSON
+src/main/resources/
+  application.properties   runtime configuration
+  db/migration/            Flyway schema + seed data (unchanged)
+  META-INF/resources/      AngularJS SPA and vendored assets
+src/test/java/             unit + @QuarkusTest characterization tests
+deploy/openshift/          kustomize manifests
+Containerfile              UBI 9 multi-stage build
+lib/                       vendored audit-logging-library 2.0.0
 ```
