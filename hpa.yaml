@@ -2,6 +2,9 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: coolstore
+  labels:
+    app: coolstore
+    app.kubernetes.io/part-of: coolstore
 spec:
   scaleTargetRef:
     apiVersion: apps/v1

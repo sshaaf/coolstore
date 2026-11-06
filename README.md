@@ -71,7 +71,7 @@ Keycloak (realm `eap`, client `eap-app`; import `realm-export.json`).
 ## Container image
 
 ```bash
-podman build -t coolstore:$(git rev-parse --short HEAD) -f Containerfile .
+podman build -t coolstore:$(git rev-parse --short HEAD) -f Dockerfile .
 podman run --rm -p 8080:8080 \
   -e DB_URL=jdbc:postgresql://host:5432/coolstore -e DB_PASSWORD=... \
   -e REDIS_HOSTS=redis://host:6379 -e ARTEMIS_URL=tcp://host:61616 \
@@ -88,17 +88,19 @@ with `trivy image --exit-code 1 --severity CRITICAL,HIGH coolstore:latest` in th
 ```bash
 oc new-project coolstore
 oc create secret generic coolstore-secrets \
-  --from-literal=DB_PASSWORD='...' --from-literal=ARTEMIS_PASSWORD='...'
-oc apply -k deploy/openshift/base
+  --from-literal=DB_USERNAME=coolstore --from-literal=DB_PASSWORD='...' \
+  --from-literal=ARTEMIS_USER=amq --from-literal=ARTEMIS_PASSWORD='...' \
+  --from-literal=REDIS_PASSWORD=''
+oc apply -k .
 oc get route coolstore
 ```
 
-Manifests: Deployment (2+ replicas, startup/liveness/readiness probes), Service, Route (TLS
-edge), ConfigMap, Secret template, ServiceAccount, HPA (2→6), PodDisruptionBudget and a
-NetworkPolicy limiting ingress to the router and egress to PostgreSQL/Redis/Artemis/Keycloak.
-Backing services are expected as `postgresql`, `redis`, `amq-broker`, `keycloak` and the
-audit collector; see `docs/runbook.md` for degradation behaviour, DLQ handling and the
-≤15 minute rollback.
+Manifests (repo root): Deployment (2+ replicas, startup/liveness/readiness probes), Service,
+Route (TLS edge), ConfigMap, Secret template, ServiceAccount, HPA (2→6), PodDisruptionBudget,
+NetworkPolicy, plus reference PostgreSQL/Redis/Artemis deployments. Keycloak and the audit
+collector stay external (OIDC and audit streaming are disabled by default); see
+`docs/runbook.md` for degradation behaviour, DLQ handling and the ≤15 minute rollback, and
+`CONTAINERIZATION_REPORT.md` for the full deployment runbook.
 
 ## Configuration
 

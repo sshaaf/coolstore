@@ -4,10 +4,13 @@ metadata:
   name: coolstore
   labels:
     app: coolstore
+    app.kubernetes.io/name: coolstore
+    app.kubernetes.io/part-of: coolstore
 spec:
   to:
     kind: Service
     name: coolstore
+    weight: 100
   port:
     targetPort: http
   tls:

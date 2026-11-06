@@ -4,10 +4,15 @@ metadata:
   name: coolstore
   labels:
     app: coolstore
+    app.kubernetes.io/name: coolstore
+    app.kubernetes.io/part-of: coolstore
 spec:
+  type: ClusterIP
   selector:
     app: coolstore
   ports:
     - name: http
       port: 8080
       targetPort: http
+      protocol: TCP
+  sessionAffinity: None

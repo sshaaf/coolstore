@@ -1,0 +1,62 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coolstore-config
+  labels:
+    app: coolstore
+    app.kubernetes.io/name: coolstore
+    app.kubernetes.io/part-of: coolstore
+data:
+  # --- HTTP ---------------------------------------------------------------
+  HTTP_PORT: "8080"
+  # Serve the ConfigMap-mounted SPA config first, then the image's classpath copy.
+  QUARKUS_HTTP_STATIC_LOCATIONS: "/deployments/config,classpath:META-INF/resources"
+
+  # --- PostgreSQL (Flyway owns the schema) --------------------------------
+  # DB_USERNAME / DB_PASSWORD come from the Secret (coolstore-secrets).
+  DB_URL: "jdbc:postgresql://postgresql:5432/coolstore"
+  DB_POOL_MIN: "2"
+  DB_POOL_MAX: "10"
+  DB_ACQUISITION_TIMEOUT: "5S"
+  FLYWAY_MIGRATE_AT_START: "true"
+  HIBERNATE_LOG_SQL: "false"
+
+  # --- Redis (cart state, key cart:{cartId}) -------------------------------
+  REDIS_HOSTS: "redis://redis:6379"
+  REDIS_TIMEOUT: "2s"
+  CART_TTL_SECONDS: "86400"
+  CART_KEY_PREFIX: "cart:"
+
+  # --- Artemis / JMS (topic/orders) ---------------------------------------
+  ARTEMIS_URL: "tcp://amq-broker:61616"
+  ORDERS_TOPIC: "topic/orders"
+  ORDERS_DLQ: "orders.dlq"
+  ORDERS_CONSUMER_ENABLED: "true"
+  ORDERS_MAX_DELIVERY_ATTEMPTS: "5"
+
+  # --- Audit stream (TCP/NDJSON). No collector is shipped: non-blocking ---
+  AUDIT_STREAM_ENABLED: "false"
+  AUDIT_STREAM_HOST: "audit-collector"
+  AUDIT_STREAM_PORT: "5044"
+  AUDIT_APPLICATION: "coolstore"
+  AUDIT_COMPONENT: "order-service"
+
+  # --- OIDC / SPA SSO ------------------------------------------------------
+  # The backend enforces no authorization (parity with the legacy app).
+  # Enable only together with a Keycloak route serving /auth/ on the same host.
+  OIDC_ENABLED: "false"
+  QUARKUS_OIDC_AUTH_SERVER_URL: "http://keycloak:8080/realms/eap"
+  QUARKUS_OIDC_CLIENT_ID: "eap-app"
+
+  # --- Logging / lifecycle ------------------------------------------------
+  LOG_JSON: "true"
+  LOG_LEVEL: "INFO"
+  AUDIT_LOG_LEVEL: "WARN"
+  SHUTDOWN_TIMEOUT: "20s"
+
+  # --- SPA runtime configuration (mounted at /deployments/config) ---------
+  coolstore.json: |
+    {"MONOLITH": true, "API_ENDPOINT": "", "SECURE_API_ENDPOINT": "", "SSO_ENABLED": false}
+  keycloak.json: |
+    {"realm": "eap", "auth-server-url": "/auth/", "ssl-required": "external",
+     "resource": "eap-app", "public-client": true, "confidential-port": 0}

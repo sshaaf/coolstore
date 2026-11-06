@@ -1,0 +1,55 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: coolstore
+  labels:
+    app: coolstore
+    app.kubernetes.io/part-of: coolstore
+spec:
+  podSelector:
+    matchLabels:
+      app: coolstore
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    # OpenShift router (external traffic via the Route)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              network.openshift.io/policy-group: ingress
+      ports:
+        - protocol: TCP
+          port: 8080
+    # Prometheus / monitoring scrapes /q/metrics directly against the pod IP
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: openshift-monitoring
+      ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    - to: [{podSelector: {matchLabels: {app: postgresql}}}]
+      ports: [{protocol: TCP, port: 5432}]
+    - to: [{podSelector: {matchLabels: {app: redis}}}]
+      ports: [{protocol: TCP, port: 6379}]
+    - to: [{podSelector: {matchLabels: {app: amq-broker}}}]
+      ports: [{protocol: TCP, port: 61616}]
+    # Optional dependencies (only effective when those pods exist)
+    - to: [{podSelector: {matchLabels: {app: audit-collector}}}]
+      ports: [{protocol: TCP, port: 5044}]
+    - to: [{podSelector: {matchLabels: {app: keycloak}}}]
+      ports: [{protocol: TCP, port: 8080}, {protocol: TCP, port: 8443}]
+    # Cluster DNS (openshift-dns listens on 5353; 53 kept for portability)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: openshift-dns
+      ports:
+        - protocol: UDP
+          port: 5353
+        - protocol: TCP
+          port: 5353
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53

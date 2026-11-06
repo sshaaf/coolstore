@@ -1,0 +1,122 @@
+# =============================================================================
+# AMQ 7 / ActiveMQ Artemis broker - JMS topic/orders (checkout pipeline)
+#
+# Reference deployment for dev/test only. The broker stores messages in an
+# emptyDir, so they are lost on restart. For production deploy the broker with
+# the AMQ Broker Operator (or a managed AMQP/JMS service) and configure:
+#   * address setting for topic/orders: max-delivery-attempts=5
+#   * dead-letter-address=orders.dlq
+#   * persistence + a PVC
+# The application's readiness probe includes Artemis; set ARTEMIS_HEALTH_EXCLUDE
+# to "true" in the ConfigMap for a catalog-only deployment without a broker.
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: amq-broker
+  labels:
+    app: amq-broker
+    app.kubernetes.io/name: amq-broker
+    app.kubernetes.io/part-of: coolstore
+spec:
+  type: ClusterIP
+  selector:
+    app: amq-broker
+  ports:
+    - name: core
+      port: 61616
+      targetPort: core
+      protocol: TCP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: amq-broker
+  labels:
+    app: amq-broker
+    app.kubernetes.io/name: amq-broker
+    app.kubernetes.io/part-of: coolstore
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: amq-broker
+  template:
+    metadata:
+      labels:
+        app: amq-broker
+        app.kubernetes.io/name: amq-broker
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: amq-broker
+          # Community UBI-based broker image; swap for registry.redhat.io/amq7/*
+          # (or an operator-managed broker) in production.
+          image: quay.io/artemiscloud/activemq-artemis-broker:1.0.31
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: core
+              containerPort: 61616
+              protocol: TCP
+          env:
+            - name: AMQ_USER
+              valueFrom:
+                secretKeyRef:
+                  name: coolstore-secrets
+                  key: ARTEMIS_USER
+            - name: AMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: coolstore-secrets
+                  key: ARTEMIS_PASSWORD
+            - name: AMQ_NAME
+              value: amq-broker
+            - name: AMQ_ROLE
+              value: amq
+            - name: AMQ_REQUIRE_LOGIN
+              value: "true"
+            - name: AMQ_TRANSPORTS
+              value: tcp
+            - name: AMQ_GLOBAL_MAX_SIZE
+              value: 1 GiB
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: data
+              mountPath: /opt/amq/data
+            - name: tmp
+              mountPath: /tmp
+          readinessProbe:
+            tcpSocket:
+              port: core
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            tcpSocket:
+              port: core
+            initialDelaySeconds: 40
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+      volumes:
+        - name: data
+          emptyDir:
+            sizeLimit: 1Gi
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi

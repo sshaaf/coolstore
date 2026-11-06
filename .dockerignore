@@ -1,0 +1,18 @@
+# Build context exclusions (Docker + Podman; keep in sync with .containerignore)
+.git
+.github
+.gitignore
+.rgctl
+mig-*-workspace
+docs
+assets
+realm-export.json
+README.md
+CONTAINERIZATION_REPORT.md
+*.md
+target
+.idea
+.settings
+.classpath
+.vscode
+*.log

@@ -32,5 +32,6 @@ Cart state is Redis-only, so a rollback to the legacy WAR loses carts created af
 by design; orders already persisted in PostgreSQL are unaffected.
 
 ## Configuration
-All runtime config is `ConfigMap`/`Secret`-driven (see `deploy/openshift/base/`). Changing
+All runtime config is `ConfigMap`/`Secret`-driven (see `configmap.yaml` and `secret.yaml` in
+the repo root; apply with `oc apply -k .`). Changing
 `DB_PASSWORD` triggers a rolling restart; no rebuild required.

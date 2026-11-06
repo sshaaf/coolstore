@@ -1,8 +1,18 @@
-target
+# Build context exclusions (Podman; keep in sync with .dockerignore)
 .git
 .github
+.gitignore
 .rgctl
 mig-*-workspace
 docs
 assets
 realm-export.json
+README.md
+CONTAINERIZATION_REPORT.md
+*.md
+target
+.idea
+.settings
+.classpath
+.vscode
+*.log

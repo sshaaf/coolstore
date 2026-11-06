@@ -4,6 +4,8 @@ metadata:
   name: coolstore
   labels:
     app: coolstore
+    app.kubernetes.io/name: coolstore
+    app.kubernetes.io/version: "1.0.0"
     app.kubernetes.io/part-of: coolstore
 spec:
   replicas: 2
@@ -20,14 +22,23 @@ spec:
     metadata:
       labels:
         app: coolstore
+        app.kubernetes.io/name: coolstore
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /q/metrics
+        prometheus.io/port: "8080"
     spec:
       serviceAccountName: coolstore
+      # OpenShift restricted-v2 assigns an arbitrary UID from the namespace
+      # range; the image is built group-0 writable (USER 185, group root), so no
+      # runAsUser is pinned here.
       securityContext:
         runAsNonRoot: true
         seccompProfile:
           type: RuntimeDefault
       containers:
         - name: coolstore
+          # kustomization.yaml rewrites this to the OpenShift internal registry.
           image: coolstore:latest
           imagePullPolicy: Always
           ports:
@@ -40,34 +51,36 @@ spec:
             - secretRef:
                 name: coolstore-secrets
           env:
-            # ConfigMap-mounted SPA config (coolstore.json/keycloak.json) takes precedence
-            # over the copies baked into the image.
-            - name: QUARKUS_HTTP_STATIC_LOCATIONS
-              value: /deployments/config,classpath:META-INF/resources
-            - name: DB_PASSWORD
+            # Optional Redis AUTH; empty secret value leaves Redis unauthenticated.
+            - name: QUARKUS_REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: coolstore-secrets
-                  key: DB_PASSWORD
-          # Startup gets up to 2 minutes (Flyway + JVM boot), then liveness takes over.
+                  key: REDIS_PASSWORD
+                  optional: true
+          # Flyway + JVM boot may take a while; startupProbe gates the others.
           startupProbe:
             httpGet:
               path: /q/health/started
               port: http
-            failureThreshold: 24
             periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 40
           livenessProbe:
             httpGet:
               path: /q/health/live
               port: http
             periodSeconds: 10
             timeoutSeconds: 3
+            failureThreshold: 3
+          # Includes PostgreSQL, Redis and Artemis checks (see docs/runbook.md).
           readinessProbe:
             httpGet:
               path: /q/health/ready
               port: http
             periodSeconds: 5
             timeoutSeconds: 3
+            failureThreshold: 3
           resources:
             requests:
               cpu: 250m
@@ -93,7 +106,8 @@ spec:
       terminationGracePeriodSeconds: 40
       volumes:
         - name: tmp
-          emptyDir: {}
+          emptyDir:
+            sizeLimit: 128Mi
         - name: config-files
           configMap:
             name: coolstore-config
