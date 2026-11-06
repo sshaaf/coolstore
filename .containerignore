@@ -1,0 +1,20 @@
+# Build context exclusions - keeps the image build small and reproducible
+.git
+.github
+.gitignore
+target
+.rgctl
+mig-plan-workspace
+mig-prompt-workspace
+mig-execute-workspace
+assets
+deploy
+docs
+README.md
+realm-export.json
+rules
+.konveyor
+.vscode
+.project
+*.md
+lib/audit-logging-library-1.0.0.jar

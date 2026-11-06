@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Apply with:  oc apply -k deploy/
+# Secrets are NOT part of the kustomization on purpose: create them once with
+# `oc create secret` (see deploy/secret.example.yaml and docs/runbook.md).
+
+namespace: coolstore
+
+resources:
+  - serviceaccount.yaml
+  - configmap.yaml
+  - deployment.yaml
+  - service.yaml
+  - route.yaml
+  - pdb.yaml
+  - hpa.yaml
+  - networkpolicy.yaml
+
+commonLabels:
+  app.kubernetes.io/name: coolstore
+  app.kubernetes.io/part-of: coolstore

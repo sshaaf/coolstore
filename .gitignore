@@ -4,3 +4,9 @@ target
 .idea
 .settings
 .vscode
+
+# rgctl graph cache / analysis artifacts (regenerate with `rgctl discover`)
+.rgctl
+
+# local container build output
+*.tar

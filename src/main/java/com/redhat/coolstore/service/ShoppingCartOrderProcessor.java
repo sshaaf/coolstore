@@ -1,35 +1,42 @@
 package com.redhat.coolstore.service;
 
-import java.util.logging.Logger;
-import javax.ejb.Stateless;
-import javax.annotation.Resource;
-import javax.inject.Inject;
-import javax.jms.JMSContext;
-import javax.jms.Topic;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+
+import org.eclipse.microprofile.reactive.messaging.Channel;
+import org.eclipse.microprofile.reactive.messaging.Emitter;
+import org.jboss.logging.Logger;
 
 import com.redhat.coolstore.model.ShoppingCart;
 import com.redhat.coolstore.utils.Transformers;
 
-@Stateless
-public class ShoppingCartOrderProcessor  {
+/**
+ * Publishes the checkout order event.
+ *
+ * <p>Replaces the {@code @Stateless} bean that injected a {@code JMSContext} and sent to
+ * the JBoss JMS topic address. The payload is unchanged (see
+ * {@link Transformers#shoppingCartToJson(ShoppingCart)}); only the transport moved to SmallRye
+ * Reactive Messaging over AMQP 1.0.
+ */
+@ApplicationScoped
+public class ShoppingCartOrderProcessor {
+
+    private static final Logger LOG = Logger.getLogger(ShoppingCartOrderProcessor.class);
 
     @Inject
-    Logger log;
+    @Channel("orders")
+    Emitter<String> ordersEmitter;
 
-
-    @Inject
-    private transient JMSContext context;
-
-    @Resource(lookup = "java:/topic/orders")
-    private Topic ordersTopic;
-
-    
-  
-    public void  process(ShoppingCart cart) {
-        log.info("Sending order from processor: ");
-        context.createProducer().send(ordersTopic, Transformers.shoppingCartToJson(cart));
+    public ShoppingCartOrderProcessor() {
     }
 
+    public ShoppingCartOrderProcessor(Emitter<String> ordersEmitter) {
+        this.ordersEmitter = ordersEmitter;
+    }
 
-
+    public void process(ShoppingCart cart) {
+        String payload = Transformers.shoppingCartToJson(cart);
+        LOG.info("Sending order from processor: " + payload);
+        ordersEmitter.send(payload);
+    }
 }

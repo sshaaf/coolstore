@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coolstore-config
+data:
+  # --- Datasource (credentials come from the coolstore-db Secret) -----------
+  QUARKUS_DATASOURCE_JDBC_URL: jdbc:postgresql://postgres.coolstore.svc:5432/coolstore
+  QUARKUS_DATASOURCE_USERNAME: coolstore
+  QUARKUS_FLYWAY_MIGRATE_AT_START: "true"
+  QUARKUS_FLYWAY_BASELINE_ON_MIGRATE: "true"
+
+  # --- REST / storefront ---------------------------------------------------
+  QUARKUS_REST_PATH: /services
+  COOLSTORE_MONOLITH: "true"
+  SSO_ENABLED: "false"
+  KEYCLOAK_REALM: eap
+  KEYCLOAK_AUTH_SERVER_URL: https://keycloak-coolstore.apps.example.com/
+  KEYCLOAK_RESOURCE: eap-app
+
+  # --- Messaging (AMQP 1.0 / Artemis) --------------------------------------
+  AMQP_HOST: artemis.coolstore.svc
+  AMQP_PORT: "5672"
+  AMQP_USER: coolstore
+
+  # --- Audit streaming -----------------------------------------------------
+  AUDIT_ENABLED: "true"
+  AUDIT_STREAM_HOST: audit-collector.coolstore.svc
+  AUDIT_STREAM_PORT: "6514"
+  AUDIT_STREAM_PROTOCOL: TCP
+
+  # --- Cart ----------------------------------------------------------------
+  CART_TTL_SECONDS: "1800"
+
+  # --- Runtime -------------------------------------------------------------
+  JAVA_OPTS_APPEND: >-
+    -Dquarkus.http.host=0.0.0.0
+    -Djava.util.logging.manager=org.jboss.logmanager.LogManager
+    -XX:MaxRAMPercentage=75.0
+    -XX:+ExitOnOutOfMemoryError
+  QUARKUS_LOG_LEVEL: INFO

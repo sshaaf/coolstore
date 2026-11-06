@@ -1,182 +1,128 @@
-# CoolStore Monolith
+# CoolStore
 
-This repository has the complete coolstore monolith built as a Java EE 7 application. To deploy it on JBoss 7.4 follow the instructions below
+CoolStore is a small storefront (AngularJS SPA) plus an order backend, migrated from a **Java EE 7 WAR on
+JBoss EAP 7.4** to a **Quarkus 3 / Java 21** application that runs as a single container on **Red Hat
+OpenShift**.
 
+| | Before | After |
+| --- | --- | --- |
+| Runtime | JBoss EAP 7.4 (standalone-full-ha) | Quarkus 3.15, fast-jar |
+| Java | 8 | 21 |
+| APIs | Java EE 7 (`javax.*`) | Jakarta EE 10 (`jakarta.*`) |
+| Build output | `ROOT.war` | `target/quarkus-app/quarkus-run.jar` |
+| Business services | EJB 3.2 (`@Stateless`, `@Stateful`, `@MessageDriven`) | CDI (`@ApplicationScoped`, `@Transactional`, reactive messaging) |
+| Datasource | JBoss JNDI `java:jboss/datasources/CoolstoreDS` | Quarkus datasource (`quarkus.datasource.*`) |
+| Migrations | Flyway 4.1.2 in an EJB `@Singleton @Startup` | `quarkus-flyway` (Flyway 10, `migrate-at-start`) |
+| Order events | JMS topic `topic/orders` | SmallRye Reactive Messaging over AMQP 1.0 |
+| Shipping call | remote EJB (`ejb:/ROOT/ShippingService!...`) | direct CDI injection |
+| Audit | `audit-logging-library` 1.0.0, `systemPath`, file logger, never emitted | 2.0.0, `StreamableAuditLogger` + `AuditEvent` record + `logEventAsync` |
+| Health | `health.jsp` containing `1` | SmallRye Health `/q/health/live|ready` |
+| Tests | none (`maven.test.skip=true`) | unit + `@QuarkusTest` + Testcontainers |
+| Deployment | manual WAR deploy + JBoss CLI | `Containerfile` + `deploy/` manifests |
 
-## Pre requisite
-
-* JBoss 7.4 zip installation
-* Keycloak v20.0.5 zip installation
-* podman or docker, tested with podman version 4.3.1
-* maven, tested with maven version 3.8.5
-* OpenJDK, tested with version 17.0.5
-
-## Start a postgreSQL database
-
-```
-podman run --name myPostgresDb \
-   -p 5432:5432 \
-   -e POSTGRES_USER=postgresUser \
-   -e POSTGRES_PASSWORD=postgresPW \
-   -e POSTGRES_DB=postgresDB \
-   -d postgres
-```
-
-## Start keycloak
-
-Extract keycloak-20.0.5.zip
-
-```cd keycloak-20.0.5```
-
-Start keycloak in dev mode listening on port 8081
-
-``` ./bin/kc.sh start-dev --http-port=8081 ```
-
-Open http://127.0.0.1:8081 in your browser
-
-
-Set an administrator username and password, then login to keycloak using these credentials
-
-Click on the "Master" dropdown, and select "Create Realm"
-
-Click on "Browse" and locate the file realm-export.json in this repo.
-
-Click on "Create" to create the "eap" realm
-
-Click on "Users" and "Create new user"
-
-Enter a username, e.g. "user1" and click on "Create"
-
-From the next form, click on the "Credentials" tab and "Set password"
-
-Set a password and password confirmation, and unselect "Temporary"
-
-Click on "Save" to store the password.
-
-Keycloak is now configured correctly
-
-## Configure JBoss 7.4
-
-Unzip jboss-eap-7.4.0.zip
-
-``` cd jboss-eap-7.4/jboss-eap-7.4 ```
-
-Create the folder modules/org/postgresql/main
-
-``` mkdir -p modules/org/postgresql/main ```
-
-
-Download the postgres jdbc driver from https://jdbc.postgresql.org/download/  e.g. https://jdbc.postgresql.org/download/postgresql-42.5.4.jar
-
- Copy postgres jar file to modules/org/postgresql/main
-
-create module.xml  -- ensure the filename matches the filename downloaded in the previous step
+## Layout
 
 ```
-cat <<EOF > modules/org/postgresql/main/module.xml
-<?xml version="1.0" encoding="UTF-8"?>
-<module xmlns="urn:jboss:module:1.0" name="org.postgresql">
- <resources>
- <resource-root path="postgresql-42.5.4.jar"/>
- </resources>
- <dependencies>
- <module name="javax.api"/>
- <module name="javax.transaction.api"/>
- </dependencies>
-</module>
-EOF
+src/main/java/com/redhat/coolstore
+├── audit/     AuditService (TCP streaming), AuditEvents (record factory)
+├── model/     JPA entities (CatalogItemEntity, InventoryEntity, Order, OrderItem) + DTOs
+├── rest/      ProductEndpoint, OrderEndpoint, CartEndpoint, ApiExceptionMapper
+├── service/   Catalog, Product, Order, Promo, Shipping, ShoppingCart, CartStore,
+│              ShoppingCartOrderProcessor (Emitter), OrderEventConsumer, InventoryNotificationConsumer
+└── utils/     Transformers (Jackson), StartupLifecycle, DatabaseHealthCheck, StorefrontConfigRoutes
+
+src/main/resources
+├── application.properties
+├── db/migration/            V1_1__CreateSchema.sql, V1_2__AddInitialData.sql (unchanged)
+└── META-INF/resources/      index.html, app/, partials/, bower_components/ (AngularJS SPA)
 ```
 
+## Build and test
 
-Start JBoss EAP 7.4 in full high availability mode
+Requirements: **JDK 21**, **Maven 3.9+**, Docker or Podman (for the integration tests' PostgreSQL).
 
-From the jboss-eap-7.4 folder run:
-
-```./jboss-eap-7.4-2/bin/standalone.sh -c standalone-full-ha.xml  -Djboss.node.name=node1 ```
-
-In another terminal, start the jboss cli, from the jboss7.4 installation folder run 
-
-```  ./bin/jboss-cli.sh --connect ```
-
-Run the following commands:
-
-```
-/subsystem=datasources/jdbc-driver=postgresql:add(driver-name=postgresql,driver-module-name=org.postgresql)
+```bash
+mvn -B clean verify      # unit + @QuarkusTest/Testcontainers, produces target/quarkus-app/
+mvn -B quarkus:dev       # dev mode: Dev Services PostgreSQL, in-memory messaging
+java -jar target/quarkus-app/quarkus-run.jar
 ```
 
+The vendored `audit-logging-library` 2.0.0 is resolved from `lib/maven-repo` (a `file://` Maven repository
+declared in `pom.xml`) - no `mvn install:install-file` step, no `<systemPath>`.
+
+Useful Make targets: `make unit`, `make verify`, `make dev`, `make image`, `make scan`.
+
+## Configuration
+
+Everything environment-specific is MicroProfile Config with env-var overrides:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `DB_URL` | *unset* (Dev Services in dev/test) | JDBC URL, e.g. `jdbc:postgresql://postgres:5432/coolstore` |
+| `DB_USER` / `DB_PASSWORD` | `coolstore` | datasource credentials (Secret in OpenShift) |
+| `AMQP_HOST` / `AMQP_PORT` | `localhost` / `5672` | Artemis broker |
+| `AMQP_USER` / `AMQP_PASSWORD` | `admin` / `admin` | broker credentials (Secret) |
+| `AUDIT_ENABLED`, `AUDIT_STREAM_*` | `true`, `localhost:6514 TCP` | audit streaming |
+| `CART_TTL_SECONDS` | `1800` | idle cart eviction |
+| `SSO_ENABLED`, `KEYCLOAK_AUTH_SERVER_URL`, `KEYCLOAK_REALM`, `KEYCLOAK_RESOURCE` | `true`, `http://localhost:8081/`, `eap`, `eap-app` | storefront SSO |
+| `COOLSTORE_MONOLITH`, `API_ENDPOINT`, `SECURE_API_ENDPOINT` | `true`, empty, empty | SPA API routing |
+
+Full reference: `docs/runbook.md`.
+
+## HTTP surface
+
+Base path `/services` (unchanged for the SPA):
+
+| Method | Path |
+| --- | --- |
+| GET | `/services/products`, `/services/products/{itemId}` |
+| GET | `/services/orders`, `/services/orders/{orderId}` |
+| GET | `/services/cart/{cartId}` |
+| POST | `/services/cart/{cartId}/{itemId}/{quantity}` |
+| DELETE | `/services/cart/{cartId}/{itemId}/{quantity}` |
+| POST | `/services/cart/{cartId}/{tmpId}` (cart transfer) |
+| POST | `/services/cart/checkout/{cartId}` |
+
+Plus `/q/health/*`, `/q/metrics`, `/q/openapi`, the SPA at `/index.html`, and the generated
+`/coolstore.json` / `/keycloak.json`.
+
+Contract details and payloads: `docs/api-contract.md`.
+
+## Deploy to OpenShift
+
+```bash
+oc new-project coolstore
+oc -n coolstore create secret generic coolstore-db --from-literal=QUARKUS_DATASOURCE_PASSWORD='...'
+oc -n coolstore create secret generic coolstore-broker --from-literal=AMQP_PASSWORD='...'
+oc apply -k deploy/
 ```
- data-source add --name=CoolstoreDS --jndi-name=java:jboss/datasources/CoolstoreDS --driver-name=postgresql --connection-url=jdbc:postgresql://127.0.0.1:5432/postgresDB --user-name=postgresUser --password=postgresPW
- ```
 
-```
-jms-topic add --topic-address=topic.orders --entries=topic/orders
+Manifests: Deployment (2 replicas, health probes, read-only root filesystem, non-root), Service, edge TLS
+Route, ConfigMap, ServiceAccount, PodDisruptionBudget, HPA (2-4), NetworkPolicy. Secrets are created
+out-of-band (`deploy/secret.example.yaml` is a template, never committed with values).
 
-/subsystem=messaging-activemq/server=default:write-attribute(name=cluster-password, value=password)
-```
+CI/CD is platform-managed (Tekton on OpenShift); this repository intentionally contains no workflow
+definitions.
 
-## Build and deploy the application
+## Documentation
 
-From the root of this repo, run: 
+| Document | Contents |
+| --- | --- |
+| `docs/design-notes.md` | migration decisions: cart store, pricing pipeline, JPA mappings, JSON contract |
+| `docs/adr/001-messaging.md` | why AMQP 1.0 reactive messaging replaced the JMS topic |
+| `docs/ejb-to-cdi-map.md` | every legacy EJB/type and its replacement |
+| `docs/audit-logging.md` | library 2.0.0 API, event schema, Konveyor rule closure |
+| `docs/api-contract.md` | endpoints, payloads, pricing rules, status codes |
+| `docs/runbook.md` | build, deploy, configure, scale, rollback, troubleshoot |
+| `docs/testing.md` | test layers and coverage |
+| `docs/vendor-lockin.md` | removed vendor APIs and outstanding technical debt |
+| `mig-plan-workspace/` | migration plan, tasks and user stories |
+| `mig-execute-workspace/` | execution report and log for this migration |
 
-`mvn package`
+## Known limitations
 
-Set the JBOSS_HOME env variable e.g. 
-
-`export JBOSS_HOME=~/jboss-eap-7.4/jboss-eap-7.4`
-
-Run the jboss cli: 
-
-` $JBOSS_HOME/bin/jboss-cli.sh`
-
-Run the following command to deploy the application:
-
- `deploy ./target/ROOT.war`
-
-Navigate to http://127.0.0.1:8080
-
-![coolstore](assets/coolstore.png "coolstore")
-
-From the coostore, click on "Sign in" in the top right
-
-Login with the user credentials created on Keycloak, e.g. user1
-
-You should now be able to complete the checkout process.
-
-## Start a second instance.
-
-Make a copy of the jboss-eap-7.4/jboss-eap-7.4 e.g jboss-eap-7.4/jboss-eap-7.4-2
-
-Within the jboss-eap-7.4 folder you should now see jboss-eap-7.4 and jboss-eap-7.4-2
-
-In the jboss-eap-7.4-2, remove the contents of standalone/data/activemq
-
-From the jboss-eap-7.4 folder run:
-
-`./jboss-eap-7.4-2/bin/standalone.sh -c standalone-full-ha.xml -Djboss.socket.binding.port-offset=100  -Djboss.node.name=node2`
-
-## Monitor the logs
-
-Open up two terminals in the jboss-eap-7.4 folder
-
-Run:
-
-`tail -f jboss-eap-7.4/standalone/log/server.log` 
-
-in one terminal and 
-
-`tail -f jboss-eap-7.4-2/standalone/log/server.log` 
-
-in the other
-
-## Testing clustering
-
-If you perform a test checkout of an item, you should see both nodes processing the messages in the logs e.g.
-
-```
-2023-03-02 14:41:23,131 INFO  [stdout] (Thread-3 (ActiveMQ-client-global-threads)) 
-2023-03-02 14:41:23,131 INFO  [stdout] (Thread-3 (ActiveMQ-client-global-threads)) Message recd !
-2023-03-02 14:41:23,131 INFO  [stdout] (Thread-3 (ActiveMQ-client-global-threads)) Received order: {"orderValue":10.49,"customerName":"Karl Svensson","customerEmail":"karl@gmail.com","retailPrice":10.0,"discount":-2.5,"shippingFee":2.99,"shippingDiscount":0.0,"items":[{"productSku":"329299","quantity":1}]}
-2023-03-02 14:41:23,132 INFO  [stdout] (Thread-3 (ActiveMQ-client-global-threads)) Order object is Order [orderId=0, customerName=Karl Svensson, customerEmail=karl@gmail.com, orderValue=10.49, retailPrice=10.0, discount=-2.5, shippingFee=2.99, shippingDiscount=0.0, itemList=[OrderItem [productId=329299, quantity=1]]]
-
-
-```
+- The AngularJS 1.x / PatternFly frontend is vendored unchanged (EOL, rewrite out of scope).
+- The default `CartStore` is in-memory and per pod: use sticky sessions or a Redis-backed store when running
+  more than one replica.
+- Order event delivery is at-least-once and order persistence is not yet idempotent.
+- Backend OIDC is not enabled; SSO stays frontend-only (as in the monolith).

@@ -1,41 +1,44 @@
 package com.redhat.coolstore.rest;
 
-import java.io.Serializable;
 import java.util.List;
 
-import javax.enterprise.context.RequestScoped;
-import javax.inject.Inject;
-import javax.ws.rs.*;
-import javax.ws.rs.core.MediaType;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
 
 import com.redhat.coolstore.model.Product;
 import com.redhat.coolstore.service.ProductService;
 
-@RequestScoped
+/**
+ * Catalogue endpoints. Paths and media types are unchanged from the JAX-RS 2.0 version
+ * ({@code quarkus.rest.path=/services} keeps the {@code /services} prefix that
+ * {@code @ApplicationPath} used to provide).
+ *
+ * <p>{@code GET /products/{itemId}} returns {@code null} for an unknown SKU, which JAX-RS turns into
+ * {@code 204 No Content} - the same status the monolith returned.
+ */
+@ApplicationScoped
 @Path("/products")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
-public class ProductEndpoint implements Serializable {
-
-    /**
-     *
-     */
-    private static final long serialVersionUID = -7227732980791688773L;
+public class ProductEndpoint {
 
     @Inject
-    private ProductService pm;
-
+    ProductService productService;
 
     @GET
-    @Path("/")
     public List<Product> listAll() {
-        return pm.getProducts();
+        return productService.getProducts();
     }
 
     @GET
     @Path("/{itemId}")
     public Product getProduct(@PathParam("itemId") String itemId) {
-        return pm.getProductByItemId(itemId);
+        return productService.getProductByItemId(itemId);
     }
-
 }

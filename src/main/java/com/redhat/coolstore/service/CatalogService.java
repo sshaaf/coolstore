@@ -1,31 +1,41 @@
 package com.redhat.coolstore.service;
 
 import java.util.List;
-import java.util.logging.Logger;
 
-import javax.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Root;
+import jakarta.transaction.Transactional;
 
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.CriteriaQuery;
-import javax.persistence.criteria.Root;
+import org.jboss.logging.Logger;
 
-import javax.ejb.Stateless;
-import javax.persistence.EntityManager;
+import com.redhat.coolstore.model.CatalogItemEntity;
+import com.redhat.coolstore.model.InventoryEntity;
 
-import com.redhat.coolstore.model.*;
-
-@Stateless
+/**
+ * Catalogue and inventory access. {@code @Stateless} became {@link ApplicationScoped} plus
+ * {@link Transactional} - Quarkus has no EJB container, so the container-managed transaction
+ * demarcation has to be declared explicitly.
+ */
+@ApplicationScoped
 public class CatalogService {
 
-    @Inject
-    Logger log;
+    private static final Logger LOG = Logger.getLogger(CatalogService.class);
 
     @Inject
-    private EntityManager em;
+    EntityManager em;
 
     public CatalogService() {
     }
 
+    public CatalogService(EntityManager em) {
+        this.em = em;
+    }
+
+    @Transactional
     public List<CatalogItemEntity> getCatalogItems() {
         CriteriaBuilder cb = em.getCriteriaBuilder();
         CriteriaQuery<CatalogItemEntity> criteria = cb.createQuery(CatalogItemEntity.class);
@@ -34,15 +44,22 @@ public class CatalogService {
         return em.createQuery(criteria).getResultList();
     }
 
+    @Transactional
     public CatalogItemEntity getCatalogItemById(String itemId) {
         return em.find(CatalogItemEntity.class, itemId);
     }
 
+    @Transactional
     public void updateInventoryItems(String itemId, int deducts) {
-        InventoryEntity inventoryEntity = getCatalogItemById(itemId).getInventory();
+        CatalogItemEntity item = getCatalogItemById(itemId);
+        if (item == null) {
+            LOG.warnf("Cannot deduct %d units: unknown catalogue item %s", deducts, itemId);
+            return;
+        }
+        InventoryEntity inventoryEntity = item.getInventory();
         int currentQuantity = inventoryEntity.getQuantity();
-        inventoryEntity.setQuantity(currentQuantity-deducts);
+        inventoryEntity.setQuantity(currentQuantity - deducts);
         em.merge(inventoryEntity);
+        LOG.debugf("Inventory for %s: %d -> %d", itemId, currentQuantity, currentQuantity - deducts);
     }
-
 }

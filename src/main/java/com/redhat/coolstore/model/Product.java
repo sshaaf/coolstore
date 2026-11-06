@@ -1,10 +1,7 @@
 package com.redhat.coolstore.model;
 
-import java.io.Serializable;
 
-public class Product implements Serializable {
-
-    private static final long serialVersionUID = 7526472295622723147L;
+public class Product {
 
     private String itemId;
 

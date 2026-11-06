@@ -1,48 +1,67 @@
 package com.redhat.coolstore.model;
 
-import java.io.Serializable;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
-import javax.persistence.Table;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.SequenceGenerator;
+import jakarta.persistence.Table;
 
+/**
+ * Order line. {@code ID} is generated from the shared {@code hibernate_sequence} sequence created by the
+ * Flyway baseline (see {@link Order} for the rationale).
+ */
 @Entity
 @Table(name = "ORDER_ITEMS")
-public class OrderItem implements Serializable {
-	private static final long serialVersionUID = 64565445665456666L;
+public class OrderItem {
 
-	@Id
-	@Column(name="ID")
-	@GeneratedValue
-	private long id;
+    @Id
+    @Column(name = "ID")
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "hibernate_sequence")
+    @SequenceGenerator(name = "hibernate_sequence", sequenceName = "hibernate_sequence", allocationSize = 1)
+    private long id;
 
-	private int quantity;
+    private int quantity;
 
-	private String productId;
+    private String productId;
 
-	public OrderItem() {}
+    public OrderItem() {
+    }
 
-	public String getProductId() {
-		return productId;
-	}
+    /**
+     * Surrogate key. Not part of the published order JSON: the monolith's {@code OrderItem} only
+     * exposed {@code productId} and {@code quantity}, and that shape is part of the API contract.
+     */
+    @JsonIgnore
+    public long getId() {
+        return id;
+    }
 
-	public void setProductId(String productId) {
-		this.productId = productId;
-	}
+    public void setId(long id) {
+        this.id = id;
+    }
 
-	public int getQuantity() {
-		return quantity;
-	}
+    public String getProductId() {
+        return productId;
+    }
 
-	public void setQuantity(int quantity) {
-		this.quantity = quantity;
-	}
+    public void setProductId(String productId) {
+        this.productId = productId;
+    }
 
-	@Override
-	public String toString() {
-		return "OrderItem [productId=" + productId + ", quantity=" + quantity + "]";
-	}
+    public int getQuantity() {
+        return quantity;
+    }
 
+    public void setQuantity(int quantity) {
+        this.quantity = quantity;
+    }
+
+    @Override
+    public String toString() {
+        return "OrderItem [productId=" + productId + ", quantity=" + quantity + "]";
+    }
 }

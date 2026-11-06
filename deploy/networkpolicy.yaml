@@ -1,0 +1,53 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: coolstore
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: coolstore
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # OpenShift routers only (they live in openshift-ingress)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              network.openshift.io/policy-group: ingress
+      ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    # DNS
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 5353
+        - protocol: TCP
+          port: 53
+    # PostgreSQL
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: coolstore
+      ports:
+        - protocol: TCP
+          port: 5432
+    # Artemis AMQP
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: coolstore
+      ports:
+        - protocol: TCP
+          port: 5672
+    # Audit collector (TCP streaming)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: coolstore
+      ports:
+        - protocol: TCP
+          port: 6514
