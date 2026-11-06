@@ -1,35 +1,37 @@
 package com.redhat.coolstore.service;
 
-import java.util.logging.Logger;
-import javax.ejb.Stateless;
-import javax.annotation.Resource;
-import javax.inject.Inject;
-import javax.jms.JMSContext;
-import javax.jms.Topic;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+
+import org.jboss.logging.Logger;
 
 import com.redhat.coolstore.model.ShoppingCart;
 import com.redhat.coolstore.utils.Transformers;
 
-@Stateless
-public class ShoppingCartOrderProcessor  {
+/**
+ * Publishes a checkout as a JSON order on the {@code orders} contract.
+ *
+ * <p>Replaces the JMS producer ({@code @Inject JMSContext} + {@code @Resource(lookup =
+ * "java:/topic/orders") Topic}). The payload is the byte-identical
+ * {@link Transformers#shoppingCartToJson(ShoppingCart)} document that the JBoss deployment put on
+ * {@code topic/orders}; only the transport changed (SmallRye Reactive Messaging). The outgoing
+ * channel is {@code orders-out} and maps to the Kafka topic {@code orders}; SmallRye forbids one
+ * channel name being both an emitter and a consumer, so producer and consumer sides are named
+ * separately while the broker contract stays a single {@code orders} topic.</p>
+ */
+@ApplicationScoped
+public class ShoppingCartOrderProcessor {
 
     @Inject
     Logger log;
 
-
     @Inject
-    private transient JMSContext context;
+    OrderPublisher orderPublisher;
 
-    @Resource(lookup = "java:/topic/orders")
-    private Topic ordersTopic;
-
-    
-  
-    public void  process(ShoppingCart cart) {
+    public void process(ShoppingCart cart) {
+        String orderJson = Transformers.shoppingCartToJson(cart);
         log.info("Sending order from processor: ");
-        context.createProducer().send(ordersTopic, Transformers.shoppingCartToJson(cart));
+        orderPublisher.publish(orderJson);
     }
-
-
 
 }

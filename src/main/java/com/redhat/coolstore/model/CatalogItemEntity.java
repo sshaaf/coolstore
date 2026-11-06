@@ -1,6 +1,6 @@
 package com.redhat.coolstore.model;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import java.io.Serializable;
 
 @Entity
@@ -10,19 +10,20 @@ public class CatalogItemEntity implements Serializable {
 	private static final long serialVersionUID = -7304814269819778382L;
 	
 	@Id
+	@Column(name = "itemId")
 	private String itemId;
 
-    @Column(length = 80)
-    private String name;
+	@Column(name = "name", length = 80)
+	private String name;
 
-	@Column(name="description",columnDefinition = "text")
+	@Column(name = "description", columnDefinition = "text")
 	private String desc;
 
-    @Column
+	@Column(name = "price")
 	private double price;
 
-	@OneToOne(cascade = CascadeType.ALL,fetch=FetchType.EAGER)
-    @PrimaryKeyJoinColumn
+	@OneToOne(cascade = CascadeType.ALL, fetch = FetchType.EAGER, optional = false)
+	@PrimaryKeyJoinColumn(name = "itemId", referencedColumnName = "itemId")
 	private InventoryEntity inventory;
 
 	public CatalogItemEntity() {

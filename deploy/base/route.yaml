@@ -1,0 +1,16 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: coolstore
+  annotations:
+    # Cart state is per replica (see docs/cart-state.md): keep a client on one pod.
+    haproxy.router.openshift.io/balance: source
+spec:
+  to:
+    kind: Service
+    name: coolstore
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

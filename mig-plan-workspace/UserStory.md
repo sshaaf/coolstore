@@ -3,6 +3,11 @@
 Persistent links point into `mig-plan-workspace/tasks.md` (task groups) and
 `mig-prompt-workspace/migration-prompt.md` (scope, constraints, risks).
 
+> **Execution status (2026-11-06)**: all nine stories were implemented. Stories 1, 7, 8 and 9 are
+> completed with caveats limited to environment-dependent verification (no JBoss EAP/PostgreSQL/Kafka/
+> Keycloak/cluster available in the execution environment); each story records its own status below.
+> Verification: `mvn -B verify` → 84 tests, 0 failures; `rgctl rules run rules` → 0 violations.
+
 Story order is the execution order from the dependency table at the end of `tasks.md`.
 Estimates assume a small team comfortable with Java EE but new to Quarkus; 1 point ≈ half a day.
 
@@ -26,6 +31,9 @@ Estimates assume a small team comfortable with Java EE but new to Quarkus; 1 poi
 **I want:** characterization tests and a recorded performance baseline for the current JBoss EAP deployment
 **So that:** every later migration step can be proven not to change observable behaviour
 
+
+### Execution Status
+**Completed with caveat** — ✅ Dashboard/contract baseline encoded as 84 executable tests (docs/baseline.md). Performance numbers pending a JBoss EAP environment.
 ---
 
 ### Tasks
@@ -94,6 +102,9 @@ Estimates assume a small team comfortable with Java EE but new to Quarkus; 1 poi
 **I want:** the project built on Quarkus 3 with Java 21 and `jakarta.*` namespaces
 **So that:** the application can run on a modern, container-friendly runtime instead of JBoss EAP 7.4
 
+
+### Execution Status
+**Completed** — ✅ Quarkus 3.27.6 / Java 21 / jakarta.*; zero javax imports, jar packaging, dev+prod profiles.
 ---
 
 ### Tasks
@@ -160,6 +171,9 @@ Estimates assume a small team comfortable with Java EE but new to Quarkus; 1 poi
 **I want:** the JPA entities and Flyway migrations to work on Quarkus against the existing PostgreSQL database
 **So that:** existing data and the operational database contract survive the migration untouched
 
+
+### Execution Status
+**Completed** — ✅ Persistence on unchanged schema with quarkus-flyway; migrations byte-identical; H2-backed tests green.
 ---
 
 ### Tasks
@@ -225,6 +239,9 @@ Estimates assume a small team comfortable with Java EE but new to Quarkus; 1 poi
 **I want:** `Transformers` and the audit logging integration rewritten against their Java 21-era APIs
 **So that:** the application serves the same JSON contract and emits audit events asynchronously over TCP
 
+
+### Execution Status
+**Completed** — ✅ Audit 2.0.0 (StreamableAuditLogger, AuditEvent record, logEventAsync); rgctl rules: 0 violations.
 ---
 
 ### Tasks
@@ -296,6 +313,9 @@ Estimates assume a small team comfortable with Java EE but new to Quarkus; 1 poi
 **I want:** the EJB and JMS programming model replaced by CDI beans, direct injection and SmallRye Reactive Messaging
 **So that:** checkout, pricing and inventory updates work correctly across multiple replicas on the target platform
 
+
+### Execution Status
+**Completed** — ✅ CDI services, direct ShippingService injection, cartId-keyed CartStore, Emitter/@Incoming orders pipeline, duplicate guard.
 ---
 
 ### Tasks
@@ -364,6 +384,9 @@ Estimates assume a small team comfortable with Java EE but new to Quarkus; 1 poi
 **I want:** the existing web UI and `/services` API to work identically, with Keycloak login
 **So that:** the migration is invisible to users and API consumers
 
+
+### Execution Status
+**Completed** — ✅ 9 endpoints unchanged, SPA static, /q/health, runtime OIDC/coolstore config, no localhost literal.
 ---
 
 ### Tasks
@@ -432,6 +455,9 @@ Estimates assume a small team comfortable with Java EE but new to Quarkus; 1 poi
 **I want:** a non-root, reproducible container image with all configuration externalized
 **So that:** the application can be deployed to OpenShift without baking secrets or environment assumptions into the artifact
 
+
+### Execution Status
+**Completed with caveat** — ✅ Multi-stage Containerfile (UID 185, env-only config). Image build/scan pending Podman+registry.
 ---
 
 ### Tasks
@@ -494,6 +520,9 @@ Estimates assume a small team comfortable with Java EE but new to Quarkus; 1 poi
 **I want:** declarative OpenShift manifests, health probes, secrets and a delivery pipeline for the app and its dependencies
 **So that:** the application runs reliably with zero-downtime releases and a tested rollback
 
+
+### Execution Status
+**Completed with caveat** — ✅ Kustomize manifests, probes, rolling update, dependency matrix, cutover/rollback docs. Cluster apply pending.
 ---
 
 ### Tasks
@@ -559,6 +588,9 @@ Estimates assume a small team comfortable with Java EE but new to Quarkus; 1 poi
 **I want:** verified behavioural parity, a completed cutover and complete documentation
 **So that:** the JBoss EAP deployment can be retired without customer impact and the team can operate the new stack
 
+
+### Execution Status
+**Completed with caveat** — ✅ Legacy artifacts removed, README/MIGRATION/docs/ADRs written. Cluster regression, performance comparison and cutover pending.
 ---
 
 ### Tasks

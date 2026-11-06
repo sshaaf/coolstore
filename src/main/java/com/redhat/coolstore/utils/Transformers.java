@@ -1,33 +1,45 @@
 package com.redhat.coolstore.utils;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.redhat.coolstore.model.CatalogItemEntity;
 import com.redhat.coolstore.model.Order;
 import com.redhat.coolstore.model.OrderItem;
 import com.redhat.coolstore.model.Product;
 import com.redhat.coolstore.model.ShoppingCart;
-import java.io.StringReader;
-import java.io.StringWriter;
-import java.util.ArrayList;
-import java.util.List;
-import javax.json.Json;
-import javax.json.JsonArray;
-import javax.json.JsonArrayBuilder;
-import javax.json.JsonObject;
-import javax.json.JsonReader;
-import javax.json.JsonWriter;
 
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.logging.Logger;
+import org.jboss.logging.Logger;
 
 /**
- * Created by tqvarnst on 2017-03-30.
+ * Model &lt;-&gt; JSON transformation.
+ *
+ * <p>Rewritten from JSON-P ({@code javax.json}, later {@code jakarta.json}) to Jackson. The wire
+ * format is unchanged and pinned by golden-file tests:</p>
+ *
+ * <pre>
+ * {"orderValue":..,"customerName":..,"customerEmail":..,"retailPrice":..,"discount":..,
+ *  "shippingFee":..,"shippingDiscount":..,"items":[{"productSku":..,"quantity":..}]}
+ * </pre>
+ *
+ * <p>Field order, key names and the {@code ThreadLocalRandom} customer name/e-mail pick are
+ * preserved so that the JSON published on the {@code orders} channel is byte-identical to the
+ * document the JBoss EAP deployment put on {@code topic/orders}.</p>
  */
 public class Transformers {
 
-    private static final String[] RANDOM_NAMES = {"Sven Karlsson","Johan Andersson","Karl Svensson","Anders Johansson","Stefan Olson","Martin Ericsson"};
-    private static final String[] RANDOM_EMAILS = {"sven@gmail.com","johan@gmail.com","karl@gmail.com","anders@gmail.com","stefan@gmail.com","martin@gmail.com"};
+    private static final String[] RANDOM_NAMES = {"Sven Karlsson", "Johan Andersson", "Karl Svensson", "Anders Johansson", "Stefan Olson", "Martin Ericsson"};
+    private static final String[] RANDOM_EMAILS = {"sven@gmail.com", "johan@gmail.com", "karl@gmail.com", "anders@gmail.com", "stefan@gmail.com", "martin@gmail.com"};
 
-    private static Logger log = Logger.getLogger(Transformers.class.getName());
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
+    private static final Logger log = Logger.getLogger(Transformers.class);
 
     public static Product toProduct(CatalogItemEntity entity) {
         Product prod = new Product();
@@ -40,61 +52,72 @@ public class Transformers {
             prod.setLink(entity.getInventory().getLink());
             prod.setQuantity(entity.getInventory().getQuantity());
         } else {
-            log.warning("Inventory for " + entity.getName() + "[" + entity.getItemId()+ "] unknown and missing");
+            log.warnf("Inventory for %s[%s] unknown and missing", entity.getName(), entity.getItemId());
         }
         return prod;
     }
 
     public static String shoppingCartToJson(ShoppingCart cart) {
-        JsonArrayBuilder cartItems = Json.createArrayBuilder();
-        cart.getShoppingCartItemList().forEach(item -> {
-            cartItems.add(Json.createObjectBuilder()
-                .add("productSku",item.getProduct().getItemId())
-                .add("quantity",item.getQuantity())
-            );
-        });
+        ArrayNode cartItems = MAPPER.createArrayNode();
+        cart.getShoppingCartItemList().forEach(item -> cartItems.addObject()
+                .put("productSku", item.getProduct().getItemId())
+                .put("quantity", item.getQuantity()));
 
         int randomNameAndEmailIndex = ThreadLocalRandom.current().nextInt(RANDOM_NAMES.length);
 
-        JsonObject jsonObject = Json.createObjectBuilder()
-            .add("orderValue", Double.valueOf(cart.getCartTotal()))
-            .add("customerName",RANDOM_NAMES[randomNameAndEmailIndex])
-            .add("customerEmail",RANDOM_EMAILS[randomNameAndEmailIndex])
-            .add("retailPrice", cart.getShoppingCartItemList().stream().mapToDouble(i -> i.getQuantity()*i.getPrice()).sum())
-            .add("discount", Double.valueOf(cart.getCartItemPromoSavings()))
-            .add("shippingFee", Double.valueOf(cart.getShippingTotal()))
-            .add("shippingDiscount", Double.valueOf(cart.getShippingPromoSavings()))
-            .add("items",cartItems) 
-            .build();
-        StringWriter w = new StringWriter();
-        try (JsonWriter writer = Json.createWriter(w)) {
-            writer.write(jsonObject);
+        ObjectNode jsonObject = MAPPER.createObjectNode()
+                .put("orderValue", cart.getCartTotal())
+                .put("customerName", RANDOM_NAMES[randomNameAndEmailIndex])
+                .put("customerEmail", RANDOM_EMAILS[randomNameAndEmailIndex])
+                .put("retailPrice", cart.getShoppingCartItemList().stream().mapToDouble(i -> i.getQuantity() * i.getPrice()).sum())
+                .put("discount", cart.getCartItemPromoSavings())
+                .put("shippingFee", cart.getShippingTotal())
+                .put("shippingDiscount", cart.getShippingPromoSavings());
+        jsonObject.set("items", cartItems);
+
+        try {
+            return MAPPER.writeValueAsString(jsonObject);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
         }
-        return w.toString();
     }
 
     public static Order jsonToOrder(String json) {
-        JsonReader jsonReader = Json.createReader(new StringReader(json));
-        JsonObject rootObject = jsonReader.readObject();
+        JsonNode rootObject;
+        try {
+            rootObject = MAPPER.readTree(json);
+        } catch (JsonProcessingException e) {
+            // Same contract as the JSON-P implementation: malformed input surfaces as an
+            // unchecked exception (JsonParsingException before, RuntimeException now).
+            throw new RuntimeException(e);
+        }
         Order order = new Order();
-        order.setCustomerName(rootObject.getString("customerName"));
-        order.setCustomerEmail(rootObject.getString("customerEmail"));
-        order.setOrderValue(rootObject.getJsonNumber("orderValue").doubleValue());
-        order.setRetailPrice(rootObject.getJsonNumber("retailPrice").doubleValue());
-        order.setDiscount(rootObject.getJsonNumber("discount").doubleValue());
-        order.setShippingFee(rootObject.getJsonNumber("shippingFee").doubleValue());
-        order.setShippingDiscount(rootObject.getJsonNumber("shippingDiscount").doubleValue());
-        JsonArray jsonItems = rootObject.getJsonArray("items");
-        List<OrderItem> items = new ArrayList<OrderItem>(jsonItems.size());
-        for (JsonObject jsonItem : jsonItems.getValuesAs(JsonObject.class)) {
+        order.setCustomerName(required(rootObject, "customerName").asText());
+        order.setCustomerEmail(required(rootObject, "customerEmail").asText());
+        order.setOrderValue(required(rootObject, "orderValue").asDouble());
+        order.setRetailPrice(required(rootObject, "retailPrice").asDouble());
+        order.setDiscount(required(rootObject, "discount").asDouble());
+        order.setShippingFee(required(rootObject, "shippingFee").asDouble());
+        order.setShippingDiscount(required(rootObject, "shippingDiscount").asDouble());
+        JsonNode jsonItems = required(rootObject, "items");
+        List<OrderItem> items = new ArrayList<>(jsonItems.size());
+        for (JsonNode jsonItem : jsonItems) {
             OrderItem oi = new OrderItem();
-            oi.setProductId(jsonItem.getString("productSku"));
-            oi.setQuantity(jsonItem.getInt("quantity"));
+            oi.setProductId(required(jsonItem, "productSku").asText());
+            oi.setQuantity(required(jsonItem, "quantity").asInt());
             items.add(oi);
         }
-        order.setItemList(items); 
+        order.setItemList(items);
         return order;
     }
 
+    /** Missing members must fail like JSON-P did (NullPointerException), not silently become 0. */
+    private static JsonNode required(JsonNode node, String field) {
+        JsonNode value = node.get(field);
+        if (value == null || value.isNull()) {
+            throw new NullPointerException("Missing required JSON field: " + field);
+        }
+        return value;
+    }
 
 }

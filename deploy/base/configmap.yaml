@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coolstore-config
+data:
+  # Non-secret runtime configuration only. DB_PASSWORD / OIDC_CLIENT_SECRET live in Secret.
+  QUARKUS_HTTP_PORT: "8080"
+  DB_USER: "postgresUser"
+  FLYWAY_MIGRATE_AT_START: "true"
+  OIDC_REALM: "eap"
+  OIDC_CLIENT_ID: "eap-app"
+  OIDC_ENABLED: "false"          # backend bearer protection is opt-in (behaviour change)
+  SSO_ENABLED: "true"
+  AUDIT_ENABLED: "true"
+  AUDIT_STREAM_HOST: "audit-collector"
+  AUDIT_STREAM_PORT: "9000"
+  ORDERS_TOPIC: "orders"
+  ORDERS_CONSUMER_GROUP: "coolstore-order-service"
+  CART_STORE_MAX_CARTS: "10000"
+  LOG_JSON: "true"

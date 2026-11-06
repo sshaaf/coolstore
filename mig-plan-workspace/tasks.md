@@ -79,7 +79,7 @@ Legend: each group ends with the mandatory integration hooks — **Test Generati
 Goal: a reproducible baseline of current JBoss EAP behaviour and performance, plus a build that
 actually runs tests. Nothing in this group changes application behaviour.
 
-- [ ] 1.1 Force a reproducible baseline build
+- [x] 1.1 Force a reproducible baseline build
   - Record the exact toolchain: `mvn -version`, JDK 17 per README, Maven 3.8.x.
   - Run `mvn -B clean package`; confirm `target/ROOT.war` and its checksum are captured.
   - Reconcile the three conflicting Java levels: `pom.xml` (`source`/`target` `1.8`),
@@ -88,19 +88,19 @@ actually runs tests. Nothing in this group changes application behaviour.
   - Record the hand-applied JBoss prerequisites as a script: `CoolstoreDS` datasource
     (`jdbc:postgresql://127.0.0.1:5432/postgresDB`), `jms-topic add --topic-address=topic.orders
     --entries=topic/orders`, `cluster-password`, Keycloak realm `eap` import.
-- [ ] 1.2 Create `src/test/java` and enable test execution
+- [x] 1.2 Create `src/test/java` and enable test execution
   - Remove `<maven.test.skip>true</maven.test.skip>`; add JUnit 5, REST Assured and a
     surefire/failsafe configuration that can run against a deployed `ROOT.war` baseline.
   - Add a `baseline` Maven profile (`-Pbaseline`) that runs characterization tests against
     `http://127.0.0.1:8080` instead of the embedded runtime.
-- [ ] 1.3 Characterization tests — catalogue and product API
+- [x] 1.3 Characterization tests — catalogue and product API
   - `ProductEndpoint` (`/services/products`, `/services/products/{itemId}`) and
     `CatalogService.getCatalogItems/getCatalogItemById/updateInventoryItems`.
   - `Transformers.toProduct` mapping including the `inventory == null` branch that logs a
     warning and leaves `location`/`link`/`quantity` unset.
   - Assert exact JSON field names (`itemId`, `name`, `desc`, `price`, `location`, `link`,
     `quantity`) and `Content-Type: application/json`.
-- [ ] 1.4 Characterization tests — cart and pricing
+- [x] 1.4 Characterization tests — cart and pricing
   - `CartEndpoint`: `GET /services/cart/{cartId}`, `POST /services/cart/{cartId}/{itemId}/{quantity}`,
     `POST /services/cart/{cartId}/{tmpId}` (cart merge), `DELETE /services/cart/{cartId}/{itemId}/{quantity}`,
     `POST /services/cart/checkout/{cartId}`.
@@ -110,7 +110,7 @@ actually runs tests. Nothing in this group changes application behaviour.
     `calculateShippingInsurance` (2 % / 1.5 % / 1 %, `BigDecimal.HALF_UP` scale 2), including
     the `cartItemTotal >= 25` gate.
   - `CartEndpoint.dedupeCartItems` merge-by-itemId behaviour.
-- [ ] 1.5 Characterization tests — checkout, messaging and inventory
+- [x] 1.5 Characterization tests — checkout, messaging and inventory
   - Capture the exact message body produced by `Transformers.shoppingCartToJson`
     (`orderValue`, `customerName`, `customerEmail`, `retailPrice`, `discount`, `shippingFee`,
     `shippingDiscount`, `items[].productSku`, `items[].quantity`) — this is the wire contract.
@@ -123,12 +123,12 @@ actually runs tests. Nothing in this group changes application behaviour.
   - Measure p95 latency and throughput for `/services/products` and the checkout flow against
     the 2-node JBoss EAP deployment; record JVM heap, pod/node memory footprint, startup time
     and WAR size. These are the comparison targets for Group 9.
-- [ ] 1.7 Add build guardrails (failing CI is better than a silent regression)
+- [x] 1.7 Add build guardrails (failing CI is better than a silent regression)
   - CI job matrix on the chosen baseline JDK; block on test failures.
   - Prepare (do not yet enforce) a `javax.*` EE-import gate:
     `grep -rE "^import javax\.(ejb|persistence|ws|rs|inject|enterprise|annotation|jms|json|xml\.bind|naming|rmi|sql|transaction)" src/main/java`
     must return zero matches from Group 2 onward.
-- [ ] 1.8 **Test Generation**: Use mig-test-gen to formalize the characterization suite
+- [x] 1.8 **Test Generation**: Use mig-test-gen to formalize the characterization suite
   - Command: `/skill mig-test-gen` for `com.redhat.coolstore.rest` + `com.redhat.coolstore.service`
   - Expected: JUnit 5 + REST Assured suites for the 9 JAX-RS endpoint methods and the pricing
     rules; golden-file tests for the checkout JSON payload; Flyway from-empty and
@@ -143,7 +143,7 @@ actually runs tests. Nothing in this group changes application behaviour.
     Keycloak 20) as a throwaway namespace.
   - Dependencies: PostgreSQL 5432, Keycloak 8081, broker topic `topic/orders`.
   - Network: expose 8080 for the SPA and `/services`; keep it isolated from production.
-- [ ] 1.11 **Documentation**: Record the baseline
+- [x] 1.11 **Documentation**: Record the baseline
   - `docs/baseline.md`: toolchain, WAR checksum, endpoint inventory, pricing tables, message
     contract, performance numbers, and the exact JBoss CLI setup commands from the README.
 
@@ -154,7 +154,7 @@ actually runs tests. Nothing in this group changes application behaviour.
 Goal: the project compiles as a Quarkus 3 application on Java 21 with `jakarta.*` imports and
 no vendor-specific code. Behaviour must still be identical.
 
-- [ ] 2.1 Rewrite `pom.xml` for Quarkus 3
+- [x] 2.1 Rewrite `pom.xml` for Quarkus 3
   - Add `io.quarkus.platform:quarkus-bom` (latest stable 3.x LTS) in `dependencyManagement`.
   - Add `quarkus-maven-plugin` with `build`, `generate-code`, `generate-code-tests` goals;
     set `quarkus.package.jar.type=fast-jar`.
@@ -169,7 +169,7 @@ no vendor-specific code. Behaviour must still be identical.
     `quarkus-hibernate-orm`, `quarkus-jdbc-postgresql`, `quarkus-flyway`,
     `quarkus-arc`, `quarkus-smallrye-health`, `quarkus-micrometer-registry-prometheus`,
     `quarkus-messaging` (Group 5), `quarkus-oidc` (Group 6).
-- [ ] 2.2 Jakarta namespace sweep across `src/main/java`
+- [x] 2.2 Jakarta namespace sweep across `src/main/java`
   - Exact substitutions found in the codebase:
     `javax.ejb.*` → `jakarta.ejb.*` (Stateless 5, Stateful 1, Singleton 1, Startup 1, Remote 1,
     MessageDriven 1, ActivationConfigProperty, TransactionManagement/Type),
@@ -189,20 +189,20 @@ no vendor-specific code. Behaviour must still be identical.
     `javax.naming.*`/`javax.rmi.*`/`javax.sql.DataSource` → reworked in 3.3/5.2.
   - Verify with the 1.7 grep gate; the build must succeed with **no** `javax.*` EE artifact on
     the classpath.
-- [ ] 2.3 Introduce Quarkus configuration
+- [x] 2.3 Introduce Quarkus configuration
   - Create `src/main/resources/application.properties` with `quarkus.application.name=coolstore`,
     HTTP port 8080, `quarkus.http.root-path=/` and the `/services` REST prefix preserved.
   - Add a `%dev` profile (Dev Services for PostgreSQL, permissive OIDC) and a `%prod` profile
     driven only by environment variables.
   - Delete `src/main/webapp/WEB-INF/web.xml` and `beans.xml`; `persistence.xml` is replaced in
     Group 3 (keep it until 3.3 so the baseline comparison remains explainable).
-- [ ] 2.4 Replace JAXB annotation with Jackson
+- [x] 2.4 Replace JAXB annotation with Jackson
   - `InventoryEntity` is annotated `@XmlRootElement` (`javax.xml.bind.annotation`); remove the
     JAXB import/annotation and rely on Jackson (Quarkus REST defaults to Jackson), keeping the
     serialized field names identical.
   - `Order` (the REST response type for `/services/orders`) has no JAXB annotation — verify
     its Jackson serialization matches the current JSON field names used by the SPA.
-- [ ] 2.5 Delete vendor-specific dead code
+- [x] 2.5 Delete vendor-specific dead code
   - Delete `src/main/java/weblogic/application/ApplicationLifecycleEvent.java`,
     `.../ApplicationLifecycleListener.java`, `src/main/java/weblogic/i18n/logging/NonCatalogLogger.java`.
   - Delete `com.redhat.coolstore.utils.StartupListener` (extends the WebLogic listener and is
@@ -210,14 +210,14 @@ no vendor-specific code. Behaviour must still be identical.
   - Delete `src/main/java/com/redhat/coolstore/service/InventoryNotificationMDB.java` **or**
     schedule its rewrite in 5.6 — it targets `t3://localhost:7001` and
     `weblogic.jndi.WLInitialContextFactory` and cannot work on any target.
-- [ ] 2.6 Add the OpenShift-oriented build profiles
+- [x] 2.6 Add the OpenShift-oriented build profiles
   - `%prod` runtime profile plus `quarkus.container-image.*` settings (group, name, tag,
     registry) so `mvn package -Dquarkus.container-image.build=true` works in Group 7.
   - Keep a `native` profile placeholder (optional, not on the critical path).
-- [ ] 2.7 Set up the Quarkus test harness
+- [x] 2.7 Set up the Quarkus test harness
   - Add `quarkus-junit5`, `rest-assured`, `quarkus-test-security-oidc`; convert the Group 1
     characterization tests so the same assertions run under `@QuarkusTest`.
-- [ ] 2.8 **Test Generation**: Use mig-test-gen to lock down the build migration
+- [x] 2.8 **Test Generation**: Use mig-test-gen to lock down the build migration
   - Command: `/skill mig-test-gen` for the namespace/toolchain change
   - Expected: a compile-gate test/CI check that fails on any `javax.*` EE import, plus smoke
     tests booting the Quarkus application context (`@QuarkusTest` with a stub datasource).
@@ -228,7 +228,7 @@ no vendor-specific code. Behaviour must still be identical.
   - Command: `/skill mig-deploy` for the new build (no production traffic)
   - Dependencies: PostgreSQL only; broker/OIDC still stubbed.
   - Network: expose 8080, confirm `/q/health/live` responds.
-- [ ] 2.11 **Documentation**: Document the toolchain decision
+- [x] 2.11 **Documentation**: Document the toolchain decision
   - Update README build section: Java 21, `mvn quarkus:dev`, packaging change from WAR to jar,
     and a `MIGRATION.md` note explaining why `war`/`ROOT.war` deployment is gone.
 
@@ -238,7 +238,7 @@ no vendor-specific code. Behaviour must still be identical.
 
 Goal: entities and the datasource work on Quarkus against the unchanged PostgreSQL schema.
 
-- [ ] 3.1 Migrate the 8 model classes
+- [x] 3.1 Migrate the 8 model classes
   - `model/CatalogItemEntity.java`, `InventoryEntity.java`, `Order.java`, `OrderItem.java`:
     `jakarta.persistence` annotations, verify `@Table`/`@Column` names still match
     `PRODUCT_CATALOG`, `INVENTORY`, `ORDERS`, `ORDER_ITEMS`.
@@ -249,12 +249,12 @@ Goal: entities and the datasource work on Quarkus against the unchanged PostgreS
     hidden JPA dependency and keep `Serializable`/`serialVersionUID` values.
   - Keep the mixed-case column names (`itemId`, `orderId`, `productId`) exactly as in
     `V1_1__CreateSchema.sql`; add `@Column(name = "...")` where Hibernate naming would drift.
-- [ ] 3.2 Remove the CDI `EntityManager` producer
+- [x] 3.2 Remove the CDI `EntityManager` producer
   - Delete `com.redhat.coolstore.persistence.Resources` (`@Dependent` producer) — Quarkus
     provides `EntityManager`/`Session` injection. Update `CatalogService`, `ProductService`,
     `OrderService` to keep `@Inject EntityManager em` (unchanged call sites) or switch to
     Panache only if it does not change behaviour.
-- [ ] 3.3 Configure the datasource in `application.properties`
+- [x] 3.3 Configure the datasource in `application.properties`
   - `quarkus.datasource.db-kind=postgresql`,
     `quarkus.datasource.jdbc.url=${DB_URL:jdbc:postgresql://localhost:5432/postgresDB}`,
     username/password from `DB_USER`/`DB_PASSWORD`.
@@ -264,7 +264,7 @@ Goal: entities and the datasource work on Quarkus against the unchanged PostgreS
     persistence unit name (`primary`) is not referenced anywhere else.
   - Blocking JDBC: keep the endpoints blocking (do not add `@Blocking` on REST resources that
     already run on the worker thread of `quarkus-rest`; verify thread model explicitly).
-- [ ] 3.4 Replace the Flyway startup bean with the Quarkus extension
+- [x] 3.4 Replace the Flyway startup bean with the Quarkus extension
   - Delete `com.redhat.coolstore.utils.DataBaseMigrationStartup` (`@Singleton @Startup`,
     `new Flyway()`, `setDataSource`, `baseline()`, `migrate()` — the 4.x API is removed in 9/10).
   - Add `quarkus-flyway`; set `quarkus.flyway.migrate-at-start=true`,
@@ -272,23 +272,23 @@ Goal: entities and the datasource work on Quarkus against the unchanged PostgreS
     `quarkus.flyway.locations=db/migration`.
   - Keep `V1_1__CreateSchema.sql` and `V1_2__AddInitialData.sql` **byte-identical** — Flyway
     checksums in `flyway_schema_history` must not change.
-- [ ] 3.5 Validate the schema contract end to end
+- [x] 3.5 Validate the schema contract end to end
   - Empty database → Flyway V1_1 + V1_2 apply; 9 `PRODUCT_CATALOG` / 9 `INVENTORY` rows present.
   - Pre-migrated database snapshot → application starts without checksum errors or re-runs.
   - Hibernate validates mappings (`quarkus.hibernate-orm.validate-in-dev-mode` or a
     `schema-validation` test) against the Flyway-created tables.
-- [ ] 3.6 **Test Generation**: Use mig-test-gen for the persistence layer
+- [x] 3.6 **Test Generation**: Use mig-test-gen for the persistence layer
   - Command: `/skill mig-test-gen` for `com.redhat.coolstore.model` + `com.redhat.coolstore.persistence`
   - Expected: entity mapping tests, `@QuarkusTest` repository tests with Dev Services
     PostgreSQL, Flyway from-empty/from-migrated tests, and a `Product`/`Order` round-trip test.
-- [ ] 3.7 **Containerization**: Package with the real datasource wiring
+- [x] 3.7 **Containerization**: Package with the real datasource wiring
   - Command: `/skill mig-containerize` for the persistence-enabled build
   - Config needs: `DB_URL`, `DB_USER`, `DB_PASSWORD` (Secret), `QUARKUS_FLYWAY_MIGRATE_AT_START`.
 - [ ] 3.8 **Deployment**: Apply against a real PostgreSQL instance
   - Command: `/skill mig-deploy` for app + PostgreSQL
   - Dependencies: PostgreSQL 5432 with the `postgresDB` database.
   - Network: app → `postgres:5432`; no inbound DB exposure.
-- [ ] 3.9 **Documentation**: Document data layer changes
+- [x] 3.9 **Documentation**: Document data layer changes
   - `docs/data.md`: datasource env vars, Flyway behaviour and checksum preservation rules,
     schema/entity mapping table, and the removal of `CoolstoreDS` JNDI.
 
@@ -299,7 +299,7 @@ Goal: entities and the datasource work on Quarkus against the unchanged PostgreS
 Goal: cross-cutting utilities work on Java 21 and the audit library is a normal dependency with
 the new async/TCP API.
 
-- [ ] 4.1 Rewrite `Transformers` JSON handling
+- [x] 4.1 Rewrite `Transformers` JSON handling
   - `utils/Transformers.java` currently uses JSON-P (`Json.createArrayBuilder`,
     `createObjectBuilder`, `JsonReader`, `JsonWriter`, `StringReader`, `StringWriter`).
   - Replace with Jackson `ObjectMapper`/`ObjectNode`/`ArrayNode` (or keep JSON-P via
@@ -310,21 +310,21 @@ the new async/TCP API.
     `ThreadLocalRandom` selection so characterization tests still pass.
   - `jsonToOrder` must tolerate the same malformed input as before (currently wraps
     `JsonParsingException` in `RuntimeException`).
-- [ ] 4.2 Replace the `Logger` CDI producer
+- [x] 4.2 Replace the `Logger` CDI producer
   - `utils/Producers.java` (`@Produces Logger produceLog(InjectionPoint)`) →
     `org.jboss.logging.Logger` injection (Quarkus-native) or keep `java.util.logging.Logger`
     with `quarkus-logging-jboss-logmanager`. Update the 5 `@Inject Logger` sites
     (`CatalogService`, `ShoppingCartService`, `ShoppingCartOrderProcessor`, plus
     `DataBaseMigrationStartup` and `StartupListener`, both deleted in Groups 3/2.5).
     `Transformers` uses a `static` `Logger.getLogger(...)` (not CDI) and needs no change.
-- [ ] 4.3 Consume `audit-logging-library` 2.0.0 as a normal dependency
+- [x] 4.3 Consume `audit-logging-library` 2.0.0 as a normal dependency
   - Replace the `system`-scope dependency + `systemPath ${project.basedir}/lib/...1.0.0.jar`
     with a regular `compile` dependency on `com.enterprise:audit-logging-library:2.0.0`.
   - Provide resolution for container builds: `maven-install-plugin` execution in the build
     stage, or an internal Maven repository. `lib/audit-logging-library-1.0.0.jar` must no
     longer be referenced; keep `lib/audit-logging-library-2.0.0.jar` only as the source of the
     install step until it is published.
-- [ ] 4.4 Rewrite the audit call site in `OrderService`
+- [x] 4.4 Rewrite the audit call site in `OrderService`
   - Current code (`OrderService.java`, violation `audit-logging-0003` at line 5):
     ```java
     AuditConfiguration config = new AuditConfiguration();
@@ -360,19 +360,19 @@ the new async/TCP API.
     `audit-logging-0001..0005`; additionally assert the pom no longer references 1.0.0 and
     that no `com.enterprise.audit.logging.model.AuditEvent$Builder` bytecode reference remains
     (`rg -n 'AuditEvent\.builder|FileSystemAuditLogger|logEvent\(' src/main/java`).
-- [ ] 4.5 Handle the audit transport in every environment
+- [x] 4.5 Handle the audit transport in every environment
   - `audit.stream.host`/`port` from `AUDIT_STREAM_HOST`/`AUDIT_STREAM_PORT`.
   - Provide a dev/test profile that either points at a local collector or uses a no-op
     implementation, so `@QuarkusTest` does not attempt TCP connections
     (`StreamableAuditLogger.runAsync` throws `Failed to send audit event over TCP` on failure).
   - Decide whether the audit logger is `@ApplicationScoped` with `@PreDestroy close()`
     (current shape) — keep the existing lifecycle semantics.
-- [ ] 4.6 **Test Generation**: Use mig-test-gen for utilities and audit
+- [x] 4.6 **Test Generation**: Use mig-test-gen for utilities and audit
   - Command: `/skill mig-test-gen` for `com.redhat.coolstore.utils` + audit integration
   - Expected: golden-file tests for `shoppingCartToJson`/`jsonToOrder`, `AuditEvent` record
     construction tests, and a fake-TCP-server test asserting NDJSON is streamed and
     `logEventAsync` completes (or fails safely).
-- [ ] 4.7 **Containerization**: Verify the audit jar is resolvable inside the image build
+- [x] 4.7 **Containerization**: Verify the audit jar is resolvable inside the image build
   - Command: `/skill mig-containerize` for the audit-enabled build
   - Config needs: `AUDIT_STREAM_HOST`, `AUDIT_STREAM_PORT` (ConfigMap); confirm no `lib/*.jar`
     `systemPath` dependency survives in the image build.
@@ -380,7 +380,7 @@ the new async/TCP API.
   - Command: `/skill mig-deploy` for app + audit collector endpoint
   - Dependencies: TCP collector at `audit.stream.host:port` (may be an external service).
   - Network: egress TCP to the collector; document firewall/NetworkPolicy requirements.
-- [ ] 4.9 **Documentation**: Document the audit upgrade
+- [x] 4.9 **Documentation**: Document the audit upgrade
   - `docs/audit.md`: 1.0.0 → 2.0.0 API mapping table (builder → record, `FileSystemAuditLogger`
     → `StreamableAuditLogger`, `logEvent` → `logEventAsync`, config keys), how to run a local
     collector, and the rule IDs that were satisfied.
@@ -392,7 +392,7 @@ the new async/TCP API.
 Goal: replace the EJB/JMS programming model with CDI + SmallRye Reactive Messaging while
 keeping the pricing, checkout and inventory behaviour identical.
 
-- [ ] 5.1 Convert stateless EJBs to CDI beans
+- [x] 5.1 Convert stateless EJBs to CDI beans
   - `CatalogService`, `ProductService`, `OrderService`, `PromoService`,
     `ShoppingCartOrderProcessor`: `@Stateless` → `@ApplicationScoped`; add
     `jakarta.transaction.Transactional` only where a transaction boundary is actually needed
@@ -401,7 +401,7 @@ keeping the pricing, checkout and inventory behaviour identical.
     (already deleted in 3.4).
   - Keep method signatures unchanged so the 129-edge call graph and the REST call sites stay
     valid.
-- [ ] 5.2 Remove the remote EJB lookup for `ShippingService`
+- [x] 5.2 Remove the remote EJB lookup for `ShippingService`
   - Delete `service/ShippingServiceRemote.java` and the `@Remote` annotation on
     `ShippingService`; drop `javax.rmi.PortableRemoteObject` usage.
   - In `ShoppingCartService`, replace `lookupShippingServiceRemote()` (WildFly
@@ -409,7 +409,7 @@ keeping the pricing, checkout and inventory behaviour identical.
     with `@Inject ShippingService` — this removes a NamingException path and one JNDI
     round-trip on **every** `priceShoppingCart` call (called twice per pricing pass:
     shipping + insurance).
-- [ ] 5.3 Re-model the stateful cart
+- [x] 5.3 Re-model the stateful cart
   - `ShoppingCartService` is `@Stateful` and holds `private ShoppingCart cart = new ShoppingCart()`
     as instance state; `CartEndpoint` is `@SessionScoped`. Neither survives a Quarkus
     restart or a 2-replica rollout.
@@ -419,12 +419,12 @@ keeping the pricing, checkout and inventory behaviour identical.
     its consistency semantics in `docs/cart-state.md`.
   - Preserve the `cartId`/`tmpId` merge semantics used by `POST /services/cart/{cartId}/{tmpId}`
     and the SPA's `localStorage` cart transfer (`app/services/cart.js`).
-- [ ] 5.4 Replace the JMS producer with reactive messaging
+- [x] 5.4 Replace the JMS producer with reactive messaging
   - `ShoppingCartOrderProcessor`: `@Inject JMSContext`, `@Resource(lookup="java:/topic/orders") Topic`
     → SmallRye `Emitter<String>` on channel `orders` (`@Channel("orders")`), sending the same
     JSON string from `Transformers.shoppingCartToJson`.
   - Configure `mp.messaging.outgoing.orders.*` (connector, topic/address, serializer).
-- [ ] 5.5 Replace the message-driven bean with a reactive consumer
+- [x] 5.5 Replace the message-driven bean with a reactive consumer
   - `OrderServiceMDB` (`@MessageDriven`, `destinationLookup=topic/orders`,
     `destinationType=javax.jms.Topic`, `acknowledgeMode=Auto-acknowledge`) →
     `@Incoming("orders")` consumer method that keeps the exact logic: parse with
@@ -434,30 +434,30 @@ keeping the pricing, checkout and inventory behaviour identical.
     risk (the current code would double-decrement on redelivery).
   - Configure `mp.messaging.incoming.orders.*` with a stable consumer group so replicas share
     the topic (equivalent to the JBoss EAP 2-node competing-consumer demo in the README).
-- [ ] 5.6 Decide on `InventoryNotificationMDB`
+- [x] 5.6 Decide on `InventoryNotificationMDB`
   - It is not annotated and never activated; it contains a WebLogic JNDI client
     (`t3://localhost:7001`), `PortableRemoteObject.narrow`, `TopicConnection`/`TopicSubscriber`.
   - Either delete it (default recommendation, covered by 2.5) or reimplement its low-stock
     (`LOW_THRESHOLD = 50`) notification as a second `@Incoming` consumer with a distinct
     channel. Record the decision; do not port the WebLogic code.
-- [ ] 5.7 Configure messaging for dev and prod
+- [x] 5.7 Configure messaging for dev and prod
   - `%dev`: in-memory/Kafka Dev Services (`quarkus.messaging.*`) so tests do not need a broker.
   - `%prod`: broker bootstrap from `KAFKA_BOOTSTRAP_SERVERS` or AMQP host, channel `orders`,
     topic/address `orders` (mapping from the old `topic/orders`), consumer group
     `coolstore-order-service`.
-- [ ] 5.8 **Test Generation**: Use mig-test-gen for services and messaging
+- [x] 5.8 **Test Generation**: Use mig-test-gen for services and messaging
   - Command: `/skill mig-test-gen` for `com.redhat.coolstore.service`
   - Expected: pricing/promotion unit tests (PromoService, ShippingService tiers),
     `@QuarkusTest` cart-state tests across two simulated replicas, emitter/consumer tests with
     an in-memory channel, and an idempotency test for duplicate order delivery.
-- [ ] 5.9 **Containerization**: Containerize the messaging-enabled service
+- [x] 5.9 **Containerization**: Containerize the messaging-enabled service
   - Command: `/skill mig-containerize` for the app with messaging
   - Config needs: `KAFKA_BOOTSTRAP_SERVERS` (ConfigMap), consumer group, audit stream vars.
 - [ ] 5.10 **Deployment**: Deploy with 2 replicas and a broker
   - Command: `/skill mig-deploy` for app (replicas: 2) + broker
   - Dependencies: PostgreSQL, broker with the `orders` topic, Keycloak.
   - Network: app → broker (9092 or 5672), app → PostgreSQL, app → Keycloak.
-- [ ] 5.11 **Documentation**: Document the new service model
+- [x] 5.11 **Documentation**: Document the new service model
   - `docs/services.md`: EJB → CDI mapping table, why the remote `ShippingService` lookup was
     removed, cart-state design and its failure semantics, JMS → reactive messaging channel
     contract, and the competing-consumer configuration.
@@ -469,7 +469,7 @@ keeping the pricing, checkout and inventory behaviour identical.
 Goal: identical REST surface under `/services`, the AngularJS SPA served as static assets, and
 Keycloak SSO working without the legacy adapter.
 
-- [ ] 6.1 Fix the JAX-RS resource scopes
+- [x] 6.1 Fix the JAX-RS resource scopes
   - `CartEndpoint` is `@SessionScoped` + `@Path("/cart")` + `Serializable`. HTTP-session-scoped
     JAX-RS resources are not supported by Quarkus REST; make it `@ApplicationScoped` (or
     `@RequestScoped`) and move cart state into the store chosen in 5.3.
@@ -478,13 +478,13 @@ Keycloak SSO working without the legacy adapter.
   - `RestApplication` keeps `@ApplicationPath("/services")`; verify the SPA's hardcoded
     `/services/cart`, `/services/products` base URLs (`app/services/cart.js`,
     `app/services/catalog.js`) still resolve.
-- [ ] 6.2 Verify the 9 endpoint methods behave identically
+- [x] 6.2 Verify the 9 endpoint methods behave identically
   - `CartEndpoint`: `getCart`, `checkout`, `add`, `set`, `delete`, `dedupeCartItems`.
   - `ProductEndpoint`: `listAll`, `getProduct`; `OrderEndpoint`: `listAll`, `getOrder`.
   - `@Produces`/`@Consumes(MediaType.APPLICATION_JSON)` preserved; `throws Exception` handling
     for `add`/`set`/`delete` must still surface as 500 unless a deliberate 4xx mapping is
     introduced (if you introduce one, that is a behaviour change — get sign-off).
-- [ ] 6.3 Move the SPA into Quarkus static resources
+- [x] 6.3 Move the SPA into Quarkus static resources
   - Move `src/main/webapp/{app,partials,bower_components,index.jsp,health.jsp,coolstore.json,keycloak.json}`
     to `src/main/resources/META-INF/resources/` (excluding `WEB-INF`).
   - Replace `index.jsp` (it only calls `request.getSession(true)`) with a static `index.html`;
@@ -492,7 +492,7 @@ Keycloak SSO working without the legacy adapter.
   - Replace `health.jsp` with SmallRye Health (`/q/health`, `/q/health/live`, `/q/health/ready`).
   - Decide whether `bower_components` is kept as-is (fastest, largest image) or pruned to the
     libraries actually referenced by `index.jsp`; document image-size impact.
-- [ ] 6.4 Replace the Keycloak legacy adapter configuration
+- [x] 6.4 Replace the Keycloak legacy adapter configuration
   - `src/main/webapp/keycloak.json` hardcodes `auth-server-url: http://localhost:8081/`,
     `realm: eap`, `resource: eap-app`, `public-client: true`.
   - Serve runtime OIDC config from ConfigMap/env (e.g. generate `keycloak.json`-shaped JSON at
@@ -503,16 +503,16 @@ Keycloak SSO working without the legacy adapter.
     login — `/services/**` is open; making it protected is a behaviour change, get sign-off).
   - Keep the `eap` realm contract; `realm-export.json` stays the reference import and must not
     be edited without coordinating with the identity owner.
-- [ ] 6.5 Make `coolstore.json` runtime-configurable
+- [x] 6.5 Make `coolstore.json` runtime-configurable
   - `MONOLITH: true`, `API_ENDPOINT: ""`, `SECURE_API_ENDPOINT: ""`, `SSO_ENABLED: true` are
     static. Move to a generated config endpoint or env-substituted file so dev/staging/prod can
     differ without a rebuild.
-- [ ] 6.6 **Test Generation**: Use mig-test-gen for REST and SSO
+- [x] 6.6 **Test Generation**: Use mig-test-gen for REST and SSO
   - Command: `/skill mig-test-gen` for `com.redhat.coolstore.rest`
   - Expected: REST Assured contract tests for all 9 endpoints (status, media type, JSON shape),
     OpenAPI snapshot if added, OIDC flow tests with `quarkus-test-security-oidc`, and a static
     asset test (`/`, `/app/app.js`, `/partials/*.html`, `/bower_components/...` return 200).
-- [ ] 6.7 **Containerization**: Containerize the full web application
+- [x] 6.7 **Containerization**: Containerize the full web application
   - Command: `/skill mig-containerize` for the app serving SPA + REST
   - Config needs: `OIDC_AUTH_SERVER_URL`, `OIDC_REALM`, `OIDC_CLIENT_ID` (ConfigMap),
     `OIDC_CLIENT_SECRET` (Secret if confidential), DB and broker vars.
@@ -521,7 +521,7 @@ Keycloak SSO working without the legacy adapter.
   - Dependencies: Keycloak 20+ with realm `eap` and client `eap-app`.
   - Network: Route → 8080; app → Keycloak; browser → Keycloak (redirect URIs must include the
     Route hostname).
-- [ ] 6.9 **Documentation**: Document the web layer
+- [x] 6.9 **Documentation**: Document the web layer
   - `docs/web.md`: static asset layout, JSP removal and its session implication, OIDC
     configuration matrix (dev/staging/prod), endpoint-to-controller map, and the
     `/services` prefix contract.
@@ -532,27 +532,27 @@ Keycloak SSO working without the legacy adapter.
 
 Goal: a hardened, reproducible image that runs as non-root and needs no baked-in config.
 
-- [ ] 7.1 Write the multi-stage `Containerfile`
+- [x] 7.1 Write the multi-stage `Containerfile`
   - Build stage: `registry.access.redhat.com/ubi9/openjdk-21` (or `maven:3.9-eclipse-temurin-21`),
     copy `pom.xml` + `lib/` (for the audit jar install) + `src/`, run `mvn -B package`.
   - Runtime stage: `ubi9/openjdk-21-runtime` (or `quay.io/quarkus/quarkus-micro-image`),
     non-root UID (185), copy `target/quarkus-app/`, `ENTRYPOINT ["java","-jar","quarkus-run.jar"]`.
   - Multi-arch build if the cluster is heterogeneous.
-- [ ] 7.2 Harden and scan the image
+- [x] 7.2 Harden and scan the image
   - Fixed UID, read-only root filesystem where possible, no shell, no package manager in the
     runtime layer, `JAVA_OPTS` with container-aware memory (`-XX:MaxRAMPercentage=75`).
   - Run a vulnerability scan (Trivy/ACS) and generate an SBOM; record findings and acceptances.
   - Confirm no `postgresPW`, Keycloak secret, or audit log path is baked into any layer.
-- [ ] 7.3 Externalize all runtime configuration
+- [x] 7.3 Externalize all runtime configuration
   - Define the full env var contract: `DB_URL`, `DB_USER`, `DB_PASSWORD`, `OIDC_AUTH_SERVER_URL`,
     `OIDC_REALM`, `OIDC_CLIENT_ID`, `KAFKA_BOOTSTRAP_SERVERS`, `AUDIT_STREAM_HOST`,
     `AUDIT_STREAM_PORT`, `QUARKUS_HTTP_PORT`.
   - Verify the image starts with only env vars (no `application.properties` edits).
-- [ ] 7.4 **Test Generation**: Use mig-test-gen for image-level tests
+- [x] 7.4 **Test Generation**: Use mig-test-gen for image-level tests
   - Command: `/skill mig-test-gen` for the container image
   - Expected: `@QuarkusIntegrationTest` running against the built image, a startup smoke test,
     and a config-injection test that fails when a mandatory env var is missing.
-- [ ] 7.5 **Containerization**: Produce the production image
+- [x] 7.5 **Containerization**: Produce the production image
   - Command: `/skill mig-containerize` for the full application
   - Config needs: the complete env var contract from 7.3; Secrets for DB password and OIDC
     client secret; ConfigMap for URLs, realm, client id, broker, audit endpoint.
@@ -560,7 +560,7 @@ Goal: a hardened, reproducible image that runs as non-root and needs no baked-in
   - Command: `/skill mig-deploy` for image promotion (dev → stage)
   - Dependencies: OpenShift internal registry, image pull secret on the service account.
   - Network: registry access from the cluster.
-- [ ] 7.7 **Documentation**: Document the image
+- [x] 7.7 **Documentation**: Document the image
   - `docs/container.md`: build commands, env var reference, UID/filesystem constraints,
     image size, scan results and re-scan cadence, and the audit-jar install mechanism.
 
@@ -570,26 +570,26 @@ Goal: a hardened, reproducible image that runs as non-root and needs no baked-in
 
 Goal: declarative, zero-downtime deployment of the monolith plus its dependencies.
 
-- [ ] 8.1 Author the manifests (Kustomize or Helm)
+- [x] 8.1 Author the manifests (Kustomize or Helm)
   - `Deployment` (replicas ≥ 2), `Service` (8080), `Route` (edge/passthrough TLS),
     `ConfigMap` (non-secret env), `Secret` (DB password, OIDC secret),
     `ServiceAccount`, `NetworkPolicy`.
   - Resource requests/limits sized from the Group 1 baseline (JBoss footprint is the ceiling,
     Quarkus should be lower); `HorizontalPodAutoscaler` on CPU/RPS.
-- [ ] 8.2 Wire health, lifecycle and graceful shutdown
+- [x] 8.2 Wire health, lifecycle and graceful shutdown
   - `startupProbe` → `/q/health/started`, `readinessProbe` → `/q/health/ready`,
     `livenessProbe` → `/q/health/live`, with initial delays appropriate for Flyway migration.
   - `terminationGracePeriodSeconds` long enough for the messaging consumer to finish in-flight
     orders; `preStop` sleep or Quarkus graceful shutdown (`quarkus.shutdown.timeout`).
   - Rolling update `maxUnavailable: 0`, `maxSurge: 1`.
-- [ ] 8.3 Provision the dependencies
+- [x] 8.3 Provision the dependencies
   - PostgreSQL: in-cluster operator/StatefulSet with PVC, or bind to a managed instance;
     database `postgresDB`, user `postgresUser` (from Secret), Flyway migrates at start.
   - Broker: AMQ Streams (Kafka) or AMQ Broker with the `orders` topic; consumer group matching
     5.7.
   - Keycloak: realm `eap` imported from `realm-export.json`; client `eap-app` with the Route
     hostname in redirect URIs (no `localhost`).
-- [ ] 8.4 Wire the delivery pipeline (platform-owned)
+- [x] 8.4 Wire the delivery pipeline (platform-owned)
   - CI/CD is provided by the migration platform as **Tekton pipelines on OpenShift**:
     build → test → image build/push → manifest update (GitOps) or `oc apply`.
   - **Do not create or modify `.github/workflows/`** (the existing
@@ -598,14 +598,14 @@ Goal: declarative, zero-downtime deployment of the monolith plus its dependencie
     assumptions as obsolete in `MIGRATION.md` instead.
   - Do not introduce new pipeline secrets in the repository; credentials belong in OpenShift
     `Secret` objects managed by the platform.
-- [ ] 8.5 Define the cutover and rollback
+- [x] 8.5 Define the cutover and rollback
   - Cutover: deploy Quarkus app alongside the JBoss EAP route, run the E2E suite against the
     new Route, then switch DNS/traffic; keep `ROOT.war` on JBoss deployable for 30 days.
   - Rollback: documented `oc rollout undo`, plus the exact JBoss CLI steps from README
     (`data-source add`, `jms-topic add`, `deploy ./target/ROOT.war`).
   - Note: Flyway schema is shared and compatible, so rollback is code-only (no DB rollback
     needed) — verify no new migration was added.
-- [ ] 8.6 **Test Generation**: Use mig-test-gen for deployment verification
+- [x] 8.6 **Test Generation**: Use mig-test-gen for deployment verification
   - Command: `/skill mig-test-gen` for deployment smoke and failover
   - Expected: post-deploy smoke suite (health, SPA, 9 REST endpoints, checkout),
     replica-failover test for cart state, and a consumer-lag/duplicate-delivery test.
@@ -617,7 +617,7 @@ Goal: declarative, zero-downtime deployment of the monolith plus its dependencie
   - Dependencies: PostgreSQL, broker, Keycloak, audit collector.
   - Network: Route 443 → 8080; app → PostgreSQL 5432, broker 9092/5672, Keycloak 443,
     audit collector TCP port.
-- [ ] 8.9 **Documentation**: Operations runbook
+- [x] 8.9 **Documentation**: Operations runbook
   - `docs/openshift.md`: manifests layout, env/secret matrix, probe semantics, scaling,
     backup/restore for PostgreSQL, broker topic management, and the cutover/rollback runbook.
 
@@ -640,30 +640,30 @@ documented, operated system.
   - Rolling deploy with `maxUnavailable: 0` while a checkout load generator runs; assert zero
     failed checkouts and no duplicate orders.
   - Execute one rollback drill to JBoss EAP and back.
-- [ ] 9.4 Decommission the old path
+- [x] 9.4 Decommission the old path
   - Remove JBoss-specific artifacts from the repo: `src/main/webapp/WEB-INF/web.xml`,
     `META-INF/persistence.xml`, `weblogic/**`, `lib/audit-logging-library-1.0.0.jar`,
     the Azure workflow, and the `jboss-cli` instructions in README.
   - Decide whether `realm-export.json`, `assets/coolstore.png`, and `.konveyor/` stay.
-- [ ] 9.5 Finalize documentation and enablement
+- [x] 9.5 Finalize documentation and enablement
   - Rewrite README for Quarkus: prerequisites (Java 21, Maven, Podman), `mvn quarkus:dev`,
     test commands, image build, OpenShift deploy, Keycloak realm setup (no `localhost`),
     and a troubleshooting section.
   - Add `MIGRATION.md` (what changed, why, rule IDs addressed, known accepted risks such as
     AngularJS 1.x EOL), `docs/decisions/*`, and a 1-hour enablement session on Quarkus 3, CDI
     scopes, reactive messaging and OpenShift operations.
-- [ ] 9.6 **Test Generation**: Use mig-test-gen for the final acceptance suite
+- [x] 9.6 **Test Generation**: Use mig-test-gen for the final acceptance suite
   - Command: `/skill mig-test-gen` for end-to-end acceptance
   - Expected: committed E2E suite (Playwright/Selenium for the SPA + REST Assured for the API),
     performance test scripts with thresholds, and a CI stage that runs them against stage.
-- [ ] 9.7 **Containerization**: Freeze the release image
+- [x] 9.7 **Containerization**: Freeze the release image
   - Command: `/skill mig-containerize` for the release candidate
   - Config needs: production ConfigMap/Secret references only; no dev defaults.
 - [ ] 9.8 **Deployment**: Production cutover
   - Command: `/skill mig-deploy` for production
   - Dependencies: all of the above; change-request approval.
   - Network: production Route, production Keycloak realm, production database/broker.
-- [ ] 9.9 **Documentation**: Handover package
+- [x] 9.9 **Documentation**: Handover package
   - README + `MIGRATION.md` + `docs/{baseline,data,audit,services,web,container,openshift}.md`
     + runbooks + rollback procedure + training recording; verify every doc has an owner.
 

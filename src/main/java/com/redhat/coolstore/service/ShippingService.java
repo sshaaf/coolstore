@@ -3,16 +3,27 @@ package com.redhat.coolstore.service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
-import javax.ejb.Remote;
-import javax.ejb.Stateless;
+import jakarta.enterprise.context.ApplicationScoped;
 
 import com.redhat.coolstore.model.ShoppingCart;
 
-@Stateless
-@Remote
-public class ShippingService implements ShippingServiceRemote {
+/**
+ * Tiered shipping and insurance calculation.
+ *
+ * <p>Formerly an EJB {@code @Stateless @Remote} bean. The remote interface
+ * ({@code ShippingServiceRemote}) and the {@code ejb:/ROOT/ShippingService!...} JNDI lookup are
+ * gone: this bean is injected directly into {@link ShoppingCartService}. The pricing tables are
+ * unchanged and pinned by characterization tests:</p>
+ *
+ * <pre>
+ * shipping:  0-&lt;25 -&gt; 2.99, 25-&lt;50 -&gt; 4.99, 50-&lt;75 -&gt; 6.99, 75-&lt;100 -&gt; 8.99, 100-&lt;10000 -&gt; 10.99
+ * insurance: 25-&lt;100 -&gt; 2 %, 100-&lt;500 -&gt; 1.5 %, 500-&lt;10000 -&gt; 1 % of the cart item total,
+ *            rounded HALF_UP to 2 decimals
+ * </pre>
+ */
+@ApplicationScoped
+public class ShippingService {
 
-    @Override
     public double calculateShipping(ShoppingCart sc) {
 
         if (sc != null) {
@@ -45,7 +56,6 @@ public class ShippingService implements ShippingServiceRemote {
 
     }
 
-    @Override
     public double calculateShippingInsurance(ShoppingCart sc) {
 
         if (sc != null) {
