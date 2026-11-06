@@ -1,0 +1,53 @@
+{
+  "appUrl": "https://coolstore-coolstore-migiq.apps.ocp.g5pzs.sandbox1052.opentlc.com",
+  "namespace": "coolstore-migiq",
+  "appName": "coolstore",
+  "image": "image-registry.openshift-image-registry.svc:5000/coolstore-migiq/coolstore:migiq",
+  "pipelineRun": "migiq-deploy-coolstore-2",
+  "cluster": "https://172.30.0.1:443",
+  "manifests": [
+    "serviceaccount.yaml",
+    "configmap.yaml",
+    "postgresql.yaml",
+    "redis.yaml",
+    "artemis.yaml",
+    "deployment.yaml",
+    "service.yaml",
+    "route.yaml",
+    "hpa.yaml",
+    "pdb.yaml",
+    "networkpolicy.yaml"
+  ],
+  "dependencies": [
+    {
+      "name": "postgresql",
+      "status": "deployed",
+      "reason": "StatefulSet postgresql + 10Gi RWO PVC (registry.redhat.io/rhel9/postgresql-15); Flyway migrates the schema at startup"
+    },
+    {
+      "name": "redis",
+      "status": "deployed",
+      "reason": "Deployment redis (registry.redhat.io/rhel9/redis-7); ephemeral cart cache, AUTH disabled by omitting the empty REDIS_PASSWORD key"
+    },
+    {
+      "name": "artemis",
+      "status": "deployed",
+      "reason": "Deployment amq-broker (quay.io/artemiscloud/activemq-artemis-broker:1.0.31); JMS topic/orders used by checkout"
+    },
+    {
+      "name": "keycloak",
+      "status": "skipped",
+      "reason": "Optional OIDC provider; OIDC_ENABLED=false in coolstore-config (legacy parity: no protected paths) and no Keycloak manifest is shipped"
+    },
+    {
+      "name": "audit-collector",
+      "status": "skipped",
+      "reason": "Optional TCP/NDJSON collector; AUDIT_STREAM_ENABLED=false and no collector manifest is shipped"
+    }
+  ],
+  "verification": {
+    "routeHttpCode": "200",
+    "healthPath": "/q/health/ready",
+    "healthHttpCode": "200"
+  }
+}
