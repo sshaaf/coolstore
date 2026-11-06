@@ -43,6 +43,12 @@ data:
   # --- Storefront ----------------------------------------------------------
   # /coolstore.json and /keycloak.json are rendered from these values at
   # request time, so the SPA points at the right endpoints without a rebuild.
+  # The SPA reads these from /coolstore.json. They must resolve to a non-empty
+  # value: SmallRye Config fails to convert "" for the String properties
+  # coolstore.api-endpoint / coolstore.secure-api-endpoint and Quarkus then
+  # aborts startup. Point them at this deployment's route.
+  API_ENDPOINT: https://coolstore-coolstore-migiq.apps.ocp.g5pzs.sandbox1052.opentlc.com/services
+  SECURE_API_ENDPOINT: https://coolstore-coolstore-migiq.apps.ocp.g5pzs.sandbox1052.opentlc.com/services
   COOLSTORE_MONOLITH: "true"
   SSO_ENABLED: "false"
   KEYCLOAK_REALM: eap

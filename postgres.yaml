@@ -48,9 +48,10 @@ spec:
         runAsNonRoot: true
         seccompProfile:
           type: RuntimeDefault
-        # The sclorg PostgreSQL image runs as UID 26; the volume must be
-        # group-writable before initdb runs.
-        fsGroup: 26
+        # No fsGroup: on OpenShift the restricted-v2/v3 SCC assigns fsGroup from
+        # the namespace's allocated group range and rejects a literal group ID.
+        # The sclorg PostgreSQL image support arbitrary UID, and the SCC-assigned
+        # fsGroup makes /var/lib/pgsql/data group-writable before initdb runs.
       containers:
         - name: postgres
           # Requires the Red Hat registry pull secret on the cluster.

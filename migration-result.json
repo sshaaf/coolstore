@@ -1,0 +1,54 @@
+{
+  "appUrl": "https://coolstore-coolstore-migiq.apps.ocp.g5pzs.sandbox1052.opentlc.com",
+  "namespace": "coolstore-migiq",
+  "appName": "coolstore",
+  "image": "image-registry.openshift-image-registry.svc:5000/coolstore-migiq/coolstore:migiq",
+  "pipelineRun": "migiq-deploy-coolstore-10",
+  "cluster": "https://172.30.0.1:443",
+  "manifests": [
+    "artemis.yaml",
+    "buildconfig.yaml",
+    "configmap.yaml",
+    "deployment.yaml",
+    "hpa.yaml",
+    "imagestream.yaml",
+    "networkpolicy.yaml",
+    "pdb.yaml",
+    "postgres.yaml",
+    "route.yaml",
+    "service.yaml",
+    "serviceaccount.yaml"
+  ],
+  "dependencies": [
+    {
+      "name": "postgres",
+      "status": "deployed",
+      "reason": "StatefulSet postgres (rhel9/postgresql-15) + headless Service; Flyway migrations ran on startup; readiness health check reports database UP"
+    },
+    {
+      "name": "artemis",
+      "status": "deployed",
+      "reason": "StatefulSet artemis (amq7/amq-broker-rhel8 7.11) + Service on 5672; multicast address orders, 1/1 Running"
+    },
+    {
+      "name": "audit-collector",
+      "status": "skipped",
+      "reason": "External TCP collector; AUDIT_ENABLED=true but the audit logger is non-fatal by design, no in-cluster instance shipped in the manifests"
+    },
+    {
+      "name": "keycloak",
+      "status": "skipped",
+      "reason": "SSO_ENABLED=false in configmap.yaml; OIDC endpoints are optional for this deployment"
+    },
+    {
+      "name": "kafka",
+      "status": "skipped",
+      "reason": "No kafka-topic.yaml in the manifest set; the application uses AMQP 1.0 (Artemis), not Kafka"
+    }
+  ],
+  "verification": {
+    "routeHttpCode": "200",
+    "healthPath": "/q/health/ready",
+    "healthHttpCode": "200"
+  }
+}

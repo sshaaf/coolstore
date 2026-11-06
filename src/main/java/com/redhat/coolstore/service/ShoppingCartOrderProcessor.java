@@ -24,7 +24,7 @@ public class ShoppingCartOrderProcessor {
     private static final Logger LOG = Logger.getLogger(ShoppingCartOrderProcessor.class);
 
     @Inject
-    @Channel("orders")
+    @Channel("orders-out")
     Emitter<String> ordersEmitter;
 
     public ShoppingCartOrderProcessor() {

@@ -100,11 +100,13 @@
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-micrometer-registry-prometheus</artifactId>
         </dependency>
-        <!-- Provides the SLF4J binding required by audit-logging-library 2.0.0 -->
-        <dependency>
-            <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-jboss-logmanager</artifactId>
-        </dependency>
+        <!--
+            SLF4J binding for audit-logging-library 2.0.0 comes transitively from
+            io.quarkus:quarkus-core -> org.jboss.slf4j:slf4j-jboss-logmanager
+            (JBoss LogManager). An explicit io.quarkus:quarkus-jboss-logmanager
+            dependency cannot be declared: no such artifact exists and the
+            Quarkus BOM manages no version for it, which broke `mvn package`.
+        -->
 
         <!-- Container image (Jib alternative to the Containerfile) -->
         <dependency>
