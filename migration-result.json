@@ -1,0 +1,44 @@
+{
+  "appUrl": "https://coolstore-coolstore-migiq.apps.ocp.g5pzs.sandbox1052.opentlc.com",
+  "namespace": "coolstore-migiq",
+  "appName": "coolstore",
+  "image": "image-registry.openshift-image-registry.svc:5000/coolstore-migiq/coolstore:migiq",
+  "pipelineRun": "migiq-deploy-coolstore",
+  "cluster": "https://172.30.0.1:443",
+  "manifests": [
+    "deploy/base/serviceaccount.yaml",
+    "deploy/base/configmap.yaml",
+    "deploy/base/deployment.yaml",
+    "deploy/base/service.yaml",
+    "deploy/base/route.yaml",
+    "deploy/base/networkpolicy.yaml",
+    "deploy/base/hpa.yaml"
+  ],
+  "dependencies": [
+    {
+      "name": "postgres",
+      "status": "deployed",
+      "reason": "No PostgreSQL in the cluster and the application fails fast on Flyway/datasource; deployed a verification-only quay.io/sclorg/postgresql-16-c9s instance (Service postgres:5432, db postgresDB) with credentials from Secret coolstore-db, created out of band. Production target remains a managed/shared PostgreSQL."
+    },
+    {
+      "name": "kafka",
+      "status": "deployed",
+      "reason": "mp.messaging.incoming.orders and outgoing.orders-out have health-enabled=true, so /q/health/ready is DOWN without a broker; deployed a verification-only single-node KRaft bitnamilegacy/kafka:3.9.0 (Service kafka-bootstrap:9092, topic orders auto-created). Production target remains AMQ Streams."
+    },
+    {
+      "name": "keycloak",
+      "status": "skipped",
+      "reason": "OIDC_ENABLED=false (backend bearer protection is opt-in); the SPA bootstrap document is generated from configuration and no Keycloak call happens at startup. A Keycloak route exists in the cluster if SSO is enabled later."
+    },
+    {
+      "name": "audit-collector",
+      "status": "skipped",
+      "reason": "No NDJSON/TCP collector at audit-collector:9000; the audit logger is asynchronous, delivery failures are logged and do not fail a checkout. AUDIT_ENABLED=false is the switch for such environments."
+    }
+  ],
+  "verification": {
+    "routeHttpCode": "200",
+    "healthPath": "/q/health/ready",
+    "healthHttpCode": "200"
+  }
+}
