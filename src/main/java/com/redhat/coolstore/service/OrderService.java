@@ -1,61 +1,85 @@
 package com.redhat.coolstore.service;
 
-import com.enterprise.audit.logging.config.AuditConfiguration;
-import com.enterprise.audit.logging.exception.AuditLoggingException;
-import com.enterprise.audit.logging.service.FileSystemAuditLogger;
+import com.enterprise.audit.logging.model.AuditResult;
+import com.redhat.coolstore.audit.AuditEventFactory;
+import com.redhat.coolstore.audit.AuditPublisher;
 import com.redhat.coolstore.model.Order;
+import com.redhat.coolstore.model.OrderItem;
+
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Root;
+import jakarta.transaction.Transactional;
+
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
-import javax.ejb.Stateless;
-import javax.inject.Inject;
-import javax.persistence.EntityManager;
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.CriteriaQuery;
-import javax.persistence.criteria.Root;
-
-@Stateless
+/**
+ * Order persistence plus audit emission. Was an EJB {@code @Stateless} bean with
+ * container-managed transactions; transaction boundaries are now explicit.
+ */
+@ApplicationScoped
 public class OrderService {
 
-  @Inject
-  private EntityManager em;
+    private final EntityManager em;
+    private final CatalogService catalogService;
+    private final AuditPublisher auditPublisher;
 
-  public void save(Order order) {
-    em.persist(order);
-  }
+    @ConfigProperty(name = "audit.application", defaultValue = "coolstore")
+    String auditApplication;
 
-  public List<Order> getOrders() {
-    CriteriaBuilder cb = em.getCriteriaBuilder();
-    CriteriaQuery<Order> criteria = cb.createQuery(Order.class);
-    Root<Order> member = criteria.from(Order.class);
-    criteria.select(member);
-    return em.createQuery(criteria).getResultList();
-  }
+    @ConfigProperty(name = "audit.component", defaultValue = "order-service")
+    String auditComponent;
 
-  public Order getOrderById(long id) {
-    return em.find(Order.class, id);
-  }
-
-  private FileSystemAuditLogger auditLogger;
-
-  @PostConstruct
-  public void init() throws AuditLoggingException {
-    // Initialize audit logger
-    AuditConfiguration config = new AuditConfiguration();
-    config.setLogDirectory("./device-inventory-audit-logs");
-    config.setAutoCreateDirectory(true);
-    auditLogger = new FileSystemAuditLogger(config);
-
-  }
-
-  @PreDestroy
-  public void cleanup() throws AuditLoggingException {
-    if (auditLogger != null) {
-      auditLogger.close();
+    @Inject
+    public OrderService(EntityManager em, CatalogService catalogService, AuditPublisher auditPublisher) {
+        this.em = em;
+        this.catalogService = catalogService;
+        this.auditPublisher = auditPublisher;
     }
-  }
 
+    @Transactional
+    public void save(Order order) {
+        try {
+            em.persist(order);
+            auditPublisher.publish(AuditEventFactory.orderSaved(auditApplication, auditComponent, order,
+                    AuditResult.SUCCESS, "Order persisted"));
+        } catch (RuntimeException e) {
+            auditPublisher.publish(AuditEventFactory.orderSaved(auditApplication, auditComponent, order,
+                    AuditResult.FAILURE, "Order persist failed: " + e.getMessage()));
+            throw e;
+        }
+    }
+
+    /**
+     * Order pipeline step: persist the order then deduct inventory, in one transaction.
+     * The broker message is acknowledged only after this method returns (see
+     * {@link OrderMessageConsumer}).
+     */
+    @Transactional
+    public Order processOrder(Order order) {
+        save(order);
+        if (order.getItemList() != null) {
+            for (OrderItem item : order.getItemList()) {
+                catalogService.updateInventoryItems(item.getProductId(), item.getQuantity());
+            }
+        }
+        return order;
+    }
+
+    public List<Order> getOrders() {
+        CriteriaBuilder cb = em.getCriteriaBuilder();
+        CriteriaQuery<Order> criteria = cb.createQuery(Order.class);
+        Root<Order> member = criteria.from(Order.class);
+        criteria.select(member);
+        return em.createQuery(criteria).getResultList();
+    }
+
+    public Order getOrderById(long id) {
+        return em.find(Order.class, id);
+    }
 }

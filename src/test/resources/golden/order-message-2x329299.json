@@ -1,0 +1,10 @@
+{
+  "orderValue": 17.99,
+  "customerName": "<random from the legacy six-name list>",
+  "customerEmail": "<random from the legacy six-email list>",
+  "retailPrice": 15.0,
+  "discount": -5.0,
+  "shippingFee": 2.99,
+  "shippingDiscount": 0.0,
+  "items": [{"productSku": "329299", "quantity": 2}]
+}

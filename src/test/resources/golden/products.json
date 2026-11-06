@@ -1,0 +1,11 @@
+[
+  {"itemId":"329299","name":"Quarkus T-shirt","desc":"","price":10.0,"location":"Raleigh","quantity":736,"link":"http://maps.google.com/?q=Raleigh"},
+  {"itemId":"329199","name":"Pronounced Kubernetes","desc":"","price":9.0,"location":"Raleigh","quantity":512,"link":"http://maps.google.com/?q=Raleigh"},
+  {"itemId":"165613","name":"Knit socks","desc":"","price":4.15,"location":"Raleigh","quantity":256,"link":"http://maps.google.com/?q=Raleigh"},
+  {"itemId":"165614","name":"Quarkus H2Go water bottle","desc":"","price":14.45,"location":"Raleigh","quantity":54,"link":"http://maps.google.com/?q=Raleigh"},
+  {"itemId":"165954","name":"Patagonia Refugio pack 28L","desc":"","price":6.0,"location":"Raleigh","quantity":87,"link":"http://maps.google.com/?q=Raleigh"},
+  {"itemId":"444434","name":"Red Hat Impact T-shirt","desc":"","price":9.0,"location":"Raleigh","quantity":443,"link":"http://maps.google.com/?q=Raleigh"},
+  {"itemId":"444435","name":"Quarkus twill cap","desc":"","price":13.0,"location":"Raleigh","quantity":600,"link":"http://maps.google.com/?q=Raleigh"},
+  {"itemId":"444436","name":"Women RHEL 8 t-shirt","desc":"","price":10.0,"location":"Tokyo","quantity":230,"link":"http://maps.google.com/?q=Tokyo"},
+  {"itemId":"444437","name":"Nanobloc Universal Webcam Cover","desc":"","price":2.75,"location":"Tokyo","quantity":300,"link":"http://maps.google.com/?q=Tokyo"}
+]

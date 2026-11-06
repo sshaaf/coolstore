@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coolstore-config
+data:
+  DB_URL: jdbc:postgresql://postgresql:5432/coolstore
+  DB_USERNAME: coolstore
+  REDIS_HOSTS: redis://redis:6379
+  ARTEMIS_URL: tcp://amq-broker:61616
+  ORDERS_TOPIC: topic/orders
+  AUDIT_STREAM_HOST: audit-collector
+  AUDIT_STREAM_PORT: "5044"
+  AUDIT_STREAM_ENABLED: "true"
+  OIDC_ENABLED: "true"
+  QUARKUS_OIDC_AUTH_SERVER_URL: https://keycloak:8443/realms/eap
+  QUARKUS_OIDC_CLIENT_ID: eap-app
+  CART_TTL_SECONDS: "86400"
+  FLYWAY_MIGRATE_AT_START: "true"
+  LOG_JSON: "true"
+  # SPA runtime configuration; override per environment (task 9.5)
+  coolstore.json: |
+    {"MONOLITH": true, "API_ENDPOINT": "", "SECURE_API_ENDPOINT": "", "SSO_ENABLED": true}
+  keycloak.json: |
+    {"realm": "eap", "auth-server-url": "/auth/", "ssl-required": "external",
+     "resource": "eap-app", "public-client": true, "confidential-port": 0}

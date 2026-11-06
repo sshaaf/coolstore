@@ -1,0 +1,104 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coolstore
+  labels:
+    app: coolstore
+    app.kubernetes.io/part-of: coolstore
+spec:
+  replicas: 2
+  revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: coolstore
+  template:
+    metadata:
+      labels:
+        app: coolstore
+    spec:
+      serviceAccountName: coolstore
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: coolstore
+          image: coolstore:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: coolstore-config
+            - secretRef:
+                name: coolstore-secrets
+          env:
+            # ConfigMap-mounted SPA config (coolstore.json/keycloak.json) takes precedence
+            # over the copies baked into the image.
+            - name: QUARKUS_HTTP_STATIC_LOCATIONS
+              value: /deployments/config,classpath:META-INF/resources
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: coolstore-secrets
+                  key: DB_PASSWORD
+          # Startup gets up to 2 minutes (Flyway + JVM boot), then liveness takes over.
+          startupProbe:
+            httpGet:
+              path: /q/health/started
+              port: http
+            failureThreshold: 24
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /q/health/live
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+          readinessProbe:
+            httpGet:
+              path: /q/health/ready
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 3
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: config-files
+              mountPath: /deployments/config
+              readOnly: true
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "sleep 5"]
+      terminationGracePeriodSeconds: 40
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: config-files
+          configMap:
+            name: coolstore-config
+            items:
+              - key: coolstore.json
+                path: coolstore.json
+              - key: keycloak.json
+                path: keycloak.json

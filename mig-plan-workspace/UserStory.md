@@ -1,5 +1,11 @@
 # User Stories
 
+> **Execution status (mig-execute, 2026-11-06):** Stories 1-9, 11 and 12 deliverables are
+> implemented (code, tests, Containerfile, OpenShift manifests, docs). Cluster-only
+> acceptance criteria (cutover, rollback drill, parallel run, HPA under load) cannot be
+> exercised in the sandbox; they are documented in `docs/runbook.md` and
+> `docs/perf-baseline.md`. See `mig-execute-workspace/EXECUTION_REPORT.md`.
+
 **Migration:** CoolStore Monolith — Java EE 7 on JBoss EAP 7.4 → Quarkus 3.x (Jakarta EE 10 /
 Java 21) on Red Hat OpenShift.
 **Plan:** [`tasks.md`](./tasks.md) · **Requirements:** [`../mig-prompt-workspace/migration-prompt.md`](../mig-prompt-workspace/migration-prompt.md)

@@ -1,0 +1,23 @@
+{
+  "cartItemTotal": 15.0,
+  "cartItemPromoSavings": -5.0,
+  "shippingTotal": 2.99,
+  "shippingPromoSavings": 0.0,
+  "cartTotal": 17.99,
+  "shoppingCartItemList": [
+    {
+      "price": 7.5,
+      "quantity": 2,
+      "promoSavings": -2.5,
+      "product": {
+        "itemId": "329299",
+        "name": "Quarkus T-shirt",
+        "desc": "",
+        "price": 10.0,
+        "location": "Raleigh",
+        "quantity": 736,
+        "link": "http://maps.google.com/?q=Raleigh"
+      }
+    }
+  ]
+}
