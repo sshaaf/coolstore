@@ -1,16 +1,34 @@
+# ---------------------------------------------------------------------------------------------
+# MIRROR of /route.yaml (repository root) - the root copy is canonical.
+# Kustomize (deploy/base) cannot load files above its own directory, so the base carries a
+# copy. Change the root file and copy it here in the same commit.
+# ---------------------------------------------------------------------------------------------
+# ---------------------------------------------------------------------------------------------
+# External access with edge TLS and forced HTTPS redirect.
+#
+# Cart state is in memory and keyed by cartId, per replica (see docs/cart-state.md), so the
+# router balances by source IP to keep one browser talking to one pod until a distributed cart
+# store is introduced.
+# ---------------------------------------------------------------------------------------------
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
   name: coolstore
+  labels:
+    app: coolstore
+    app.kubernetes.io/name: coolstore
+    app.kubernetes.io/part-of: coolstore
   annotations:
-    # Cart state is per replica (see docs/cart-state.md): keep a client on one pod.
     haproxy.router.openshift.io/balance: source
+    haproxy.router.openshift.io/timeout: 60s
 spec:
   to:
     kind: Service
     name: coolstore
+    weight: 100
   port:
     targetPort: http
   tls:
     termination: edge
     insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None

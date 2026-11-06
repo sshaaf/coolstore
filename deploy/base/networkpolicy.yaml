@@ -1,7 +1,24 @@
+# ---------------------------------------------------------------------------------------------
+# MIRROR of /networkpolicy.yaml (repository root) - the root copy is canonical.
+# Kustomize (deploy/base) cannot load files above its own directory, so the base carries a
+# copy. Change the root file and copy it here in the same commit.
+# ---------------------------------------------------------------------------------------------
+# ---------------------------------------------------------------------------------------------
+# Default-deny with an explicit allow-list:
+#   ingress 8080 from the OpenShift ingress routers only
+#   egress  DNS, PostgreSQL 5432, Kafka 9092, HTTPS 443 (Keycloak / registry) and audit 9000
+#
+# Adjust the egress destinations if the database, broker or collector live in a different
+# namespace or outside the cluster (use an ipBlock or a narrower namespaceSelector).
+# ---------------------------------------------------------------------------------------------
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: coolstore
+  labels:
+    app: coolstore
+    app.kubernetes.io/name: coolstore
+    app.kubernetes.io/part-of: coolstore
 spec:
   podSelector:
     matchLabels:
@@ -11,12 +28,29 @@ spec:
     - Egress
   ingress:
     - from:
-        - namespaceSelector: {}
+        # The routers live in openshift-ingress; this label is set by the platform.
+        - namespaceSelector:
+            matchLabels:
+              network.openshift.io/policy-group: ingress
       ports:
         - protocol: TCP
           port: 8080
   egress:
-    # PostgreSQL, Kafka, Keycloak and the audit collector are all reached over TCP.
+    # Cluster DNS must stay reachable, otherwise every service name fails to resolve.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: openshift-dns
+      ports:
+        - protocol: UDP
+          port: 5353
+        - protocol: TCP
+          port: 5353
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53
+    # PostgreSQL, Kafka, Keycloak (HTTPS) and the audit collector.
     - to:
         - namespaceSelector: {}
       ports:

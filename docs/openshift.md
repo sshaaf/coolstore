@@ -3,17 +3,31 @@
 ## Layout
 
 ```
-deploy/base/            deployment (2+ replicas), service, route, configmap, serviceaccount,
-                        networkpolicy, hpa, kustomization.yaml
-deploy/overlays/dev/    namespace coolstore-dev, image tag dev, 1 replica
+/<manifest>.yaml        canonical: configmap, secret (placeholders), serviceaccount, deployment,
+                        service, route, networkpolicy, hpa, kustomization.yaml  (oc apply -k .)
+deploy/base/            kustomize base - mirrors of the root manifests + kustomization.yaml
+deploy/overlays/dev/    namespace coolstore-dev, image tag dev, 1 replica, reduced memory limits
 deploy/overlays/prod/   namespace coolstore-prod, image tag 1.0.0, 3 replicas
 ```
 
+Kustomize cannot load files above its own directory, so `deploy/base` carries copies of the root
+manifests; the root files are canonical and both entry points apply the same objects.
+
 ```bash
-oc apply -k deploy/overlays/dev
+# secrets first (placeholders in secret.yaml must be replaced, or create them with oc)
+oc create secret generic coolstore-db -n coolstore-dev \
+  --from-literal=url=jdbc:postgresql://postgres:5432/postgresDB \
+  --from-literal=username=postgresUser --from-literal=password='<real>'
+oc create secret generic coolstore-broker -n coolstore-dev \
+  --from-literal=bootstrap-servers=coolstore-kafka-bootstrap:9092
+
+oc apply -k deploy/overlays/dev      # or: oc apply -k .  in the target project
 oc get pods -n coolstore-dev -w
 curl -k https://$(oc get route coolstore -n coolstore-dev -o jsonpath='{.spec.host}')/q/health/ready
 ```
+
+Secrets are not part of either kustomization on purpose: re-applying a placeholder would overwrite
+real credentials.
 
 ## Probes and lifecycle
 
@@ -23,8 +37,9 @@ curl -k https://$(oc get route coolstore -n coolstore-dev -o jsonpath='{.spec.ho
 | `readinessProbe` | `/q/health/ready` | includes DB (and broker) health; DOWN without restarts |
 | `livenessProbe` | `/q/health/live` | JVM liveness only |
 
-Rolling update `maxUnavailable: 0`, `maxSurge: 1`, `terminationGracePeriodSeconds: 45`,
-`preStop` sleep and `quarkus.shutdown.timeout=30s` so an in-flight checkout and the consumer finish.
+Rolling update `maxUnavailable: 0`, `maxSurge: 1`, `terminationGracePeriodSeconds: 45` and
+`quarkus.shutdown.timeout=30s` so an in-flight checkout and the consumer finish. There is no
+`preStop` hook: the runtime image (ubi9-micro based) has no shell; the JVM handles SIGTERM itself.
 
 ## Dependencies
 
@@ -35,8 +50,8 @@ Rolling update `maxUnavailable: 0`, `maxSurge: 1`, `terminationGracePeriodSecond
 | Keycloak | realm `eap` from `realm-export.json`, client `eap-app`, redirect URIs = Route hostname |
 | Audit collector | TCP `AUDIT_STREAM_HOST:AUDIT_STREAM_PORT`; NetworkPolicy egress 9000 |
 
-NetworkPolicy: ingress 8080 from the router namespace; egress 5432 (PostgreSQL), 9092 (Kafka),
-443 (Keycloak) and 9000 (collector).
+NetworkPolicy: ingress 8080 from the ingress routers only; egress cluster DNS (53/5353),
+5432 (PostgreSQL), 9092 (Kafka), 443 (Keycloak) and 9000 (collector).
 
 ## Pipeline
 

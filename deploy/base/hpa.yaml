@@ -1,7 +1,21 @@
+# ---------------------------------------------------------------------------------------------
+# MIRROR of /hpa.yaml (repository root) - the root copy is canonical.
+# Kustomize (deploy/base) cannot load files above its own directory, so the base carries a
+# copy. Change the root file and copy it here in the same commit.
+# ---------------------------------------------------------------------------------------------
+# ---------------------------------------------------------------------------------------------
+# CPU-based autoscaling. Cart state is per replica, so scaling events invalidate carts that are
+# pinned to a scaled-down pod - acceptable until the distributed cart store lands. Keep
+# minReplicas at 2 for the rolling update (maxUnavailable: 0) to make sense.
+# ---------------------------------------------------------------------------------------------
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: coolstore
+  labels:
+    app: coolstore
+    app.kubernetes.io/name: coolstore
+    app.kubernetes.io/part-of: coolstore
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
@@ -16,3 +30,6 @@ spec:
         target:
           type: Utilization
           averageUtilization: 70
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300

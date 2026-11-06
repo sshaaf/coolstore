@@ -1,13 +1,15 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+# The resource files in this directory are mirrors of the canonical manifests at the repository
+# root (kustomize cannot load files above its own directory). Edit the root copy, then copy it
+# here in the same commit.
+#
+# Secrets are intentionally absent: they are created out of band per environment.
 resources:
+  - serviceaccount.yaml
+  - configmap.yaml
   - deployment.yaml
   - service.yaml
   - route.yaml
-  - configmap.yaml
-  - serviceaccount.yaml
   - networkpolicy.yaml
   - hpa.yaml
-commonLabels:
-  app.kubernetes.io/name: coolstore
-  app.kubernetes.io/part-of: coolstore

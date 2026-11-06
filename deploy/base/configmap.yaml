@@ -1,20 +1,70 @@
+# ---------------------------------------------------------------------------------------------
+# MIRROR of /configmap.yaml (repository root) - the root copy is canonical.
+# Kustomize (deploy/base) cannot load files above its own directory, so the base carries a
+# copy. Change the root file and copy it here in the same commit.
+# ---------------------------------------------------------------------------------------------
+# ---------------------------------------------------------------------------------------------
+# CoolStore monolith - non-secret runtime configuration.
+#
+# Every key is an environment variable the Quarkus application reads (Quarkus maps
+# UPPER_SNAKE_CASE environment variables onto its dotted properties). Nothing here is a secret;
+# passwords and connection strings live in the Secrets created from secret.yaml.
+#
+# One image, many environments: change this ConfigMap, not the image.
+# ---------------------------------------------------------------------------------------------
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: coolstore-config
+  labels:
+    app: coolstore
+    app.kubernetes.io/name: coolstore
+    app.kubernetes.io/part-of: coolstore
 data:
-  # Non-secret runtime configuration only. DB_PASSWORD / OIDC_CLIENT_SECRET live in Secret.
+  # --- HTTP ----------------------------------------------------------------------------------
   QUARKUS_HTTP_PORT: "8080"
+  # Give an in-flight checkout and the orders consumer time to finish on SIGTERM (matches the
+  # Deployment's terminationGracePeriodSeconds of 45s).
+  QUARKUS_SHUTDOWN_TIMEOUT: "30s"
+
+  # --- persistence (username is not a secret; password is) -----------------------------------
   DB_USER: "postgresUser"
+  DB_POOL_MIN_SIZE: "2"
+  DB_POOL_MAX_SIZE: "20"
+  # Flyway owns the schema; Hibernate never generates DDL (quarkus.hibernate-orm.generation=none).
   FLYWAY_MIGRATE_AT_START: "true"
+  # Only needed for a database that predates flyway_schema_history.
+  FLYWAY_BASELINE_ON_MIGRATE: "false"
+
+  # --- messaging (Kafka / AMQ Streams) -------------------------------------------------------
+  ORDERS_TOPIC: "orders"
+  # Shared group id so both replicas consume as competing consumers.
+  ORDERS_CONSUMER_GROUP: "coolstore-order-service"
+
+  # --- cart state (in-memory per replica; see docs/cart-state.md) -----------------------------
+  CART_STORE_MAX_CARTS: "10000"
+  CART_STORE_IDLE_TIMEOUT: "PT4H"
+  ORDERS_DEDUPE_MAX_ENTRIES: "10000"
+
+  # --- SPA bootstrap documents (/coolstore.json, /keycloak.json are generated at runtime) -----
+  COOLSTORE_MONOLITH: "true"
+  SSO_ENABLED: "true"
+  # Backend bearer-token protection of /services/** stays opt-in: enabling it is a behaviour
+  # change that needs product sign-off (see MIGRATION.md).
+  OIDC_ENABLED: "false"
   OIDC_REALM: "eap"
   OIDC_CLIENT_ID: "eap-app"
-  OIDC_ENABLED: "false"          # backend bearer protection is opt-in (behaviour change)
-  SSO_ENABLED: "true"
+  # REPLACE with the Keycloak Route of this cluster before enabling SSO in the browser, e.g.
+  # https://keycloak-coolstore-dev.apps.cluster.example.com/realms/eap
+  OIDC_AUTH_SERVER_URL: "https://keycloak.apps.example.com/realms/eap"
+
+  # --- audit (NDJSON over TCP to the collector) ----------------------------------------------
+  # Set to "false" in environments without an audit collector; the logger then becomes a no-op.
   AUDIT_ENABLED: "true"
   AUDIT_STREAM_HOST: "audit-collector"
   AUDIT_STREAM_PORT: "9000"
-  ORDERS_TOPIC: "orders"
-  ORDERS_CONSUMER_GROUP: "coolstore-order-service"
-  CART_STORE_MAX_CARTS: "10000"
+  AUDIT_STREAM_PROTOCOL: "TCP"
+
+  # --- logging -------------------------------------------------------------------------------
   LOG_JSON: "true"
+  LOG_LEVEL: "INFO"

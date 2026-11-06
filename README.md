@@ -40,9 +40,13 @@ connector — no Docker, no broker, no Keycloak.
 
 ```bash
 mvn -B package -DskipTests
-podman build -t coolstore:1.0.0 .
-oc apply -k deploy/overlays/dev
+podman build -t coolstore:1.0.0 .                 # Dockerfile at the repository root
+oc apply -k deploy/overlays/dev                   # or: oc apply -k .  in the target project
 ```
+
+Database and broker Secrets are created out of band (`secret.yaml` holds placeholders only). See
+[CONTAINERIZATION_REPORT.md](CONTAINERIZATION_REPORT.md) for the image build, dependency analysis and
+deployment runbook.
 
 Configuration is entirely environment-driven; see [docs/container.md](docs/container.md) for the env
 var reference and [docs/openshift.md](docs/openshift.md) for manifests, probes and the cutover/rollback

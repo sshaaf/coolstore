@@ -1,0 +1,29 @@
+# ---------------------------------------------------------------------------------------------
+# External access with edge TLS and forced HTTPS redirect.
+#
+# Cart state is in memory and keyed by cartId, per replica (see docs/cart-state.md), so the
+# router balances by source IP to keep one browser talking to one pod until a distributed cart
+# store is introduced.
+# ---------------------------------------------------------------------------------------------
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: coolstore
+  labels:
+    app: coolstore
+    app.kubernetes.io/name: coolstore
+    app.kubernetes.io/part-of: coolstore
+  annotations:
+    haproxy.router.openshift.io/balance: source
+    haproxy.router.openshift.io/timeout: 60s
+spec:
+  to:
+    kind: Service
+    name: coolstore
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None

@@ -1,11 +1,36 @@
+# ---------------------------------------------------------------------------------------------
+# MIRROR of /deployment.yaml (repository root) - the root copy is canonical.
+# Kustomize (deploy/base) cannot load files above its own directory, so the base carries a
+# copy. Change the root file and copy it here in the same commit.
+# ---------------------------------------------------------------------------------------------
+# ---------------------------------------------------------------------------------------------
+# CoolStore monolith - Deployment
+#
+# Hardening notes (all deliberate):
+#   * no explicit runAsUser: OpenShift's restricted-v2 SCC assigns a UID from the namespace range;
+#     the image is group-0 friendly (everything owned 185:0, "g=u" semantics) so it runs unchanged.
+#     On plain Kubernetes add "runAsUser: 185" instead.
+#   * readOnlyRootFilesystem with a single emptyDir on /tmp - the process writes nowhere else.
+#   * no capabilities, no privilege escalation, no service-account token.
+#   * no preStop shell hook: the ubi9/openjdk-21-runtime image has no shell. Graceful shutdown is
+#     driven by SIGTERM plus quarkus.shutdown.timeout (30s) inside the grace period (45s).
+# ---------------------------------------------------------------------------------------------
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: coolstore
   labels:
     app: coolstore
+    app.kubernetes.io/name: coolstore
+    app.kubernetes.io/part-of: coolstore
+    app.kubernetes.io/component: backend
+  annotations:
+    # Roll out automatically when the coolstore:latest ImageStreamTag is updated by the pipeline.
+    image.openshift.io/triggers: |-
+      [{"from":{"kind":"ImageStreamTag","name":"coolstore:latest"},"fieldPath":"spec.template.spec.containers[?(@.name==\"coolstore\")].image"}]
 spec:
   replicas: 2
+  revisionHistoryLimit: 5
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -18,70 +43,106 @@ spec:
     metadata:
       labels:
         app: coolstore
+        app.kubernetes.io/name: coolstore
+        app.kubernetes.io/part-of: coolstore
+        deployment: coolstore
     spec:
       serviceAccountName: coolstore
-      # Long enough for an in-flight checkout + the orders consumer to finish.
+      automountServiceAccountToken: false
+      # Long enough for an in-flight checkout plus the orders consumer to finish.
       terminationGracePeriodSeconds: 45
       securityContext:
         runAsNonRoot: true
-        runAsUser: 185
-        fsGroup: 0
         seccompProfile:
           type: RuntimeDefault
       containers:
         - name: coolstore
+          # Resolved against the coolstore ImageStreamTag in this namespace; the pipeline pins a
+          # digest. For an external registry use the full reference, e.g.
+          #   image-registry.openshift-image-registry.svc:5000/coolstore/coolstore:1.0.0
           image: coolstore:latest
           imagePullPolicy: Always
           ports:
-            - containerPort: 8080
-              name: http
+            - name: http
+              containerPort: 8080
+              protocol: TCP
           envFrom:
             - configMapRef:
                 name: coolstore-config
           env:
             - name: DB_URL
               valueFrom:
-                secretKeyRef: { name: coolstore-db, key: url }
+                secretKeyRef:
+                  name: coolstore-db
+                  key: url
             - name: DB_PASSWORD
               valueFrom:
-                secretKeyRef: { name: coolstore-db, key: password }
+                secretKeyRef:
+                  name: coolstore-db
+                  key: password
             - name: KAFKA_BOOTSTRAP_SERVERS
               valueFrom:
-                secretKeyRef: { name: coolstore-broker, key: bootstrap-servers }
-            - name: OIDC_AUTH_SERVER_URL
+                secretKeyRef:
+                  name: coolstore-broker
+                  key: bootstrap-servers
+            # Optional: only when a confidential OIDC client is used.
+            - name: OIDC_CLIENT_SECRET
               valueFrom:
-                configMapKeyRef: { name: coolstore-config, key: OIDC_AUTH_SERVER_URL, optional: true }
+                secretKeyRef:
+                  name: coolstore-oidc
+                  key: client-secret
+                  optional: true
+            # Log correlation without an API call.
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
           resources:
             requests:
-              cpu: 100m
-              memory: 256Mi
+              cpu: 250m
+              memory: 512Mi
             limits:
               cpu: "1"
-              memory: 512Mi
+              memory: 1Gi
+          # startupProbe covers Flyway migration + Kafka/DB connection; only after it succeeds do
+          # liveness and readiness take over (failureThreshold 24 x 5s = 2 minutes to boot).
           startupProbe:
-            httpGet: { path: /q/health/started, port: 8080 }
-            failureThreshold: 30
-            periodSeconds: 2
+            httpGet:
+              path: /q/health/started
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 24
+          # readiness includes the datasource (and the broker when reachable): a broken DB removes
+          # the pod from the Service without restarting it.
           readinessProbe:
-            httpGet: { path: /q/health/ready, port: 8080 }
+            httpGet:
+              path: /q/health/ready
+              port: http
             periodSeconds: 10
+            timeoutSeconds: 3
             failureThreshold: 3
           livenessProbe:
-            httpGet: { path: /q/health/live, port: 8080 }
+            httpGet:
+              path: /q/health/live
+              port: http
             periodSeconds: 15
+            timeoutSeconds: 3
             failureThreshold: 3
-          lifecycle:
-            preStop:
-              exec:
-                command: ["sh", "-c", "sleep 5"]
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
             capabilities:
-              drop: ["ALL"]
+              drop:
+                - ALL
           volumeMounts:
             - name: tmp
               mountPath: /tmp
       volumes:
         - name: tmp
-          emptyDir: {}
+          emptyDir:
+            sizeLimit: 256Mi

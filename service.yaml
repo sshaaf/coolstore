@@ -1,0 +1,21 @@
+# ---------------------------------------------------------------------------------------------
+# Internal ClusterIP service. The Route targets the named port "http".
+# ---------------------------------------------------------------------------------------------
+apiVersion: v1
+kind: Service
+metadata:
+  name: coolstore
+  labels:
+    app: coolstore
+    app.kubernetes.io/name: coolstore
+    app.kubernetes.io/part-of: coolstore
+spec:
+  type: ClusterIP
+  selector:
+    app: coolstore
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP
+  sessionAffinity: None

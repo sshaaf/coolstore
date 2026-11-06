@@ -1,0 +1,49 @@
+# Build context exclusions (podman build / docker build).
+# The runtime image only needs pom.xml, lib/repo, src and the built fast-jar.
+
+# --- version control and tooling -------------------------------------------------------------
+.git
+.gitignore
+.github
+.vscode
+.idea
+.project
+.classpath
+.settings
+.konveyor
+.rgctl
+
+# --- build output and local caches -----------------------------------------------------------
+target
+**/target
+*.log
+
+# --- documentation, plans, rules, assets -----------------------------------------------------
+*.md
+docs
+mig-execute-workspace
+mig-plan-workspace
+mig-prompt-workspace
+assets
+rules
+
+# --- deployment descriptors (cluster objects, not image content) -----------------------------
+deploy
+Dockerfile
+.dockerignore
+configmap.yaml
+secret.yaml
+serviceaccount.yaml
+deployment.yaml
+service.yaml
+route.yaml
+networkpolicy.yaml
+hpa.yaml
+kustomization.yaml
+
+# --- cluster-side Keycloak realm import (never needed inside the image) ----------------------
+realm-export.json
+
+# --- loose vendored jars: Maven resolves the 2.0.0 artifact from lib/repo instead -------------
+lib/audit-logging-library-1.0.0.jar
+lib/audit-logging-library-2.0.0.jar

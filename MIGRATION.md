@@ -18,7 +18,7 @@ change and no REST contract change.
 | Audit | `audit-logging-library` 1.0.0 `system`-scoped jar, `FileSystemAuditLogger`, never emitted | 2.0.0 normal dependency, `StreamableAuditLogger` (NDJSON/TCP), `logEventAsync` on `OrderService.save` |
 | Web | `index.jsp` (+`request.getSession(true)`), `health.jsp`, `WEB-INF/web.xml`, `beans.xml` | static `index.html` in `META-INF/resources`, SmallRye Health `/q/health`, no descriptors |
 | Config | `keycloak.json`/`coolstore.json` static with `http://localhost:8081` | generated at runtime from config at the same URLs (`ConfigEndpoint`, `SpaConfigRoutes`) |
-| Packaging | WAR on EAP | `Containerfile` (UBI 9 / OpenJDK 21, UID 185) + Kustomize manifests for OpenShift |
+| Packaging | WAR on EAP | `Dockerfile` (UBI 9 / OpenJDK 21, non-root) + manifests for OpenShift |
 | Vendored dead code | `weblogic/**`, `StartupListener`, `NonCatalogLogger`, `InventoryNotificationMDB` | deleted (`docs/decisions/`) |
 
 ## Deliberately unchanged

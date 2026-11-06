@@ -1,13 +1,26 @@
+# ---------------------------------------------------------------------------------------------
+# MIRROR of /service.yaml (repository root) - the root copy is canonical.
+# Kustomize (deploy/base) cannot load files above its own directory, so the base carries a
+# copy. Change the root file and copy it here in the same commit.
+# ---------------------------------------------------------------------------------------------
+# ---------------------------------------------------------------------------------------------
+# Internal ClusterIP service. The Route targets the named port "http".
+# ---------------------------------------------------------------------------------------------
 apiVersion: v1
 kind: Service
 metadata:
   name: coolstore
   labels:
     app: coolstore
+    app.kubernetes.io/name: coolstore
+    app.kubernetes.io/part-of: coolstore
 spec:
+  type: ClusterIP
   selector:
     app: coolstore
   ports:
     - name: http
       port: 8080
-      targetPort: 8080
+      targetPort: http
+      protocol: TCP
+  sessionAffinity: None
