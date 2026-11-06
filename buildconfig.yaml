@@ -1,0 +1,48 @@
+# OpenShift-native build of the Dockerfile in this repository.
+#
+# Binary source is used deliberately: the build takes the current working tree
+# (no Git URL, no webhook credentials, no fork/PAT coupling), which is what the
+# migration pipeline and `oc start-build` do:
+#
+#   oc -n coolstore start-build coolstore --from-dir=. --follow
+#
+# If you prefer a Git trigger, replace `source` with:
+#   source:
+#     type: Git
+#     git:
+#       uri: https://<your-git-server>/<org>/coolstore.git
+#     contextDir: .
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: coolstore
+  labels:
+    app.kubernetes.io/name: coolstore
+    app.kubernetes.io/part-of: coolstore
+spec:
+  source:
+    type: Binary
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Dockerfile
+      # Builder and runtime images are pulled anonymously from
+      # registry.access.redhat.com, so no pull secret is needed for the build.
+      env:
+        - name: MAVEN_OPTS
+          value: "-Xmx1024m"
+  output:
+    to:
+      kind: ImageStreamTag
+      name: coolstore:latest
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+  successfulBuildsHistoryLimit: 5
+  failedBuildsHistoryLimit: 5
+  triggers:
+    - type: ConfigChange

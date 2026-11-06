@@ -1,0 +1,26 @@
+# Build context exclusions - keeps the image build small and reproducible.
+# Mirrors .containerignore (podman/buildah).
+.git
+.github
+.gitignore
+.dockerignore
+.containerignore
+target
+.rgctl
+mig-plan-workspace
+mig-prompt-workspace
+mig-execute-workspace
+assets
+deploy
+docs
+README.md
+CONTAINERIZATION_REPORT.md
+realm-export.json
+rules
+.konveyor
+.vscode
+.project
+*.md
+# Vendored *binary* jars are not needed at runtime; the Maven repository below
+# IS needed (audit-logging-library 2.0.0) and must stay in the context.
+lib/audit-logging-library-1.0.0.jar

@@ -1,0 +1,58 @@
+# Default-deny ingress/egress for the application pods with explicit allows.
+#
+# Edit the egress rules if PostgreSQL, the AMQP broker, the audit collector or
+# Keycloak live outside this namespace.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: coolstore
+  labels:
+    app.kubernetes.io/name: coolstore
+    app.kubernetes.io/part-of: coolstore
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: coolstore
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Only the OpenShift ingress routers may reach the HTTP port.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              network.openshift.io/policy-group: ingress
+      ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    # DNS (cluster DNS runs on 5353/udp and 53/tcp).
+    - ports:
+        - protocol: UDP
+          port: 5353
+        - protocol: TCP
+          port: 53
+    # PostgreSQL in this namespace.
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+    # AMQP 1.0 broker in this namespace.
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: artemis
+      ports:
+        - protocol: TCP
+          port: 5672
+    # Audit collector (TCP streaming, may be external).
+    - ports:
+        - protocol: TCP
+          port: 6514
+    # Keycloak / OIDC discovery (only needed when SSO_ENABLED=true).
+    - ports:
+        - protocol: TCP
+          port: 443

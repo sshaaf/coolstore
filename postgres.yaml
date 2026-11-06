@@ -1,0 +1,114 @@
+# PostgreSQL 15 for CoolStore - DEV/TEST convenience only.
+#
+# Production: use the managed database service of your platform (RDS, Azure
+# Database, Crunchy/EDB operator, ...). Only DB_URL in configmap.yaml and the
+# egress rule in networkpolicy.yaml have to change; the image is unchanged.
+#
+# Flyway creates the schema and the seed data at application startup
+# (quarkus.flyway.migrate-at-start=true), so no init scripts are required here.
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/part-of: coolstore
+spec:
+  # Headless: stable DNS for the StatefulSet. A single replica is enough for
+  # dev/test; JDBC connects to the pod IP returned by DNS.
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+      protocol: TCP
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/part-of: coolstore
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgres
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgres
+        app.kubernetes.io/part-of: coolstore
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+        # The sclorg PostgreSQL image runs as UID 26; the volume must be
+        # group-writable before initdb runs.
+        fsGroup: 26
+      containers:
+        - name: postgres
+          # Requires the Red Hat registry pull secret on the cluster.
+          image: registry.redhat.io/rhel9/postgresql-15:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: postgres
+              containerPort: 5432
+              protocol: TCP
+          env:
+            - name: POSTGRESQL_USER
+              value: coolstore
+            - name: POSTGRESQL_DATABASE
+              value: coolstore
+            - name: POSTGRESQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: coolstore-db
+                  key: QUARKUS_DATASOURCE_PASSWORD
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - pg_isready -h 127.0.0.1 -p 5432 -U coolstore -d coolstore
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            tcpSocket:
+              port: postgres
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/pgsql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          app.kubernetes.io/name: postgres
+          app.kubernetes.io/part-of: coolstore
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 5Gi

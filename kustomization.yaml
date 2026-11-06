@@ -1,0 +1,32 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Complete OpenShift deployment bundle for CoolStore.
+#
+#   oc new-project coolstore
+#   oc -n coolstore create secret generic coolstore-db \
+#     --from-literal=DB_PASSWORD='<password>'
+#   oc -n coolstore create secret generic coolstore-broker \
+#     --from-literal=AMQP_PASSWORD='<password>'
+#   oc apply -k .
+#   oc -n coolstore start-build coolstore --from-dir=. --follow
+#
+# secret.example.yaml is intentionally NOT listed: secrets are created once,
+# out of band, and never applied from a template.
+#
+# postgres.yaml / artemis.yaml are dev/test instances. Remove them from this
+# list when DB_URL / AMQP_HOST point at managed services.
+
+resources:
+  - serviceaccount.yaml
+  - configmap.yaml
+  - imagestream.yaml
+  - buildconfig.yaml
+  - postgres.yaml
+  - artemis.yaml
+  - deployment.yaml
+  - service.yaml
+  - route.yaml
+  - hpa.yaml
+  - pdb.yaml
+  - networkpolicy.yaml
