@@ -1,14 +1,15 @@
 # Migration Tasks
 
 > **Source of truth for scope:** `mig-prompt-workspace/migration-prompt.md`
-> **Graph evidence:** rgctl index in `.rgctl/` (regenerate with
-> `rgctl discover . --with-cfg --with-security --with-taint --with-dashboard --with-harmonic --export-migration-hints`)
+> **Graph evidence:** rgctl v0.4.20 index in `.rgctl/` (regenerate full repo with
+> `rgctl discover . --with-cfg --with-security --with-taint --with-dashboard --with-harmonic --export-migration-hints`;
+> for planning-grade Java evidence use `rgctl discover . -l java --with-cfg --with-security --with-harmonic --export-migration-hints`)
 > **Target:** Quarkus 3.x / Java 21 / Jakarta EE 10 (`jakarta.*`) on Red Hat OpenShift.
 
 ## How this plan is ordered
 
 The task groups follow the application's real dependency direction, derived from the rgctl
-call graph (129 internal `CALLS` edges) and the import graph:
+call graph (138 intra-Java `CALLS` edges, Java-scoped index) and the import graph:
 
 ```
 model (8 classes, 0 internal deps)  ─┬─> persistence (Resources → EntityManager)
@@ -17,22 +18,56 @@ model (8 classes, 0 internal deps)  ─┬─> persistence (Resources → Entity
                                               └─> rest (CartEndpoint → ShoppingCartService; ProductEndpoint → ProductService; OrderEndpoint → OrderService)
 ```
 
+**Index used for this plan** (recorded so downstream stages do not re-derive it):
+
+```bash
+rgctl discover . -l java --with-cfg --with-security --with-harmonic \
+  --export-migration-hints --migration-preset hybrid_default --migration-order scheduled
+rgctl -f json metrics --pagerank      # 680 nodes / 1,960 edges, 164 functions
+rgctl -f json communities list        # 539 communities, modularity 0.36
+rgctl -f json relations --edge calls --limit 2000   # 138 intra-Java CALLS edges
+rgctl -f json rules run rules         # 5 rules, 1 violation
+```
+
 Consequences baked into the ordering below:
 
-- `ShoppingCart` is the hub type (36 incoming calls), `ShoppingCartService` 15,
-  `ShoppingCartItem` 12, `Product`/`Order` 10 each — so the **domain model and pricing service
-  must be stable before REST work starts**.
+- `ShoppingCart` is the hub type (`getShoppingCartItemList` 7 incoming calls,
+  `getCartItemTotal` 4), `ShoppingCartService.getShoppingCart` 5, `CartEndpoint.add` 5,
+  `ShoppingCartService.priceShoppingCart` 4 — so the **domain model and pricing service must
+  be stable before REST work starts**.
 - Java 21 is **not** deferrable: `audit-logging-library` 2.0.0 uses a `record` `AuditEvent`
   and virtual threads, so the toolchain and the audit dependency move together (Group 2/4).
 - There are **no tests** in the repository (`src/test` absent, `maven.test.skip=true`), so
   characterization must be completed before any behavioural change (Group 1).
-- `migration_plan.json` exported by rgctl contains 155 steps and **all of them are
-  `src/main/webapp/bower_components` JavaScript communities** — it carries no Java ordering
-  information. Package/import order above is used instead. This is recorded so downstream
-  stages do not re-derive it.
-- Community detection returned 23,877 communities for 26,841 functions (over-fragmented,
-  driven by the vendored `bower_components` tree), so communities are **not** usable as
-  subsystem boundaries; Java packages are the unit of work.
+- `migration_plan.json` from the **Java-scoped** index contains 7 steps and is usable as a
+  scheduling hint:
+
+  | rgctl step | Community | Priority score | Plan placement |
+  |---|---|---|---|
+  | 1 | `weblogic.i18n.logging` | 0.16 | Group 2.5 (delete vendor stubs) |
+  | 2 | `weblogic.application` | −0.17 | Group 2.5 (delete vendor stubs) |
+  | 3 | `com.redhat.coolstore.persistence` | −0.17 | Group 3 |
+  | 4 | `com.redhat.coolstore.rest` | 0.19 (highest priority) | Group 6 (last code group) |
+  | 5 | `com.redhat.coolstore.utils` | 0.14 | Group 4 |
+  | 6 | `com.redhat.coolstore.service` | 0.06 | Group 5 |
+  | 7 | `com.redhat.coolstore.model` | −0.13 | Group 3 |
+
+  The roadmap is **priority-ranked, not build-ordered** (it puts `rest` first on score while
+  the call graph puts it last). This plan follows dependency order instead and uses the
+  roadmap only for "vendor stubs first" and for test-prioritisation of hotspots.
+- A full-repository index (`rgctl discover .` without `-l java`) exports 155 steps and
+  ~23,900 communities; only **7 of the 155 steps are Java packages**, and they are diluted
+  across the schedule (`model` at step 15, `utils` 16, `service` 17, `rest` 18,
+  `weblogic.application` 31, `weblogic.i18n.logging` 39, `persistence` 47). The vendored
+  `bower_components` JavaScript dominates the ranking, so the full-repo roadmap **must not be
+  used to order the Java work** — use the Java-scoped roadmap above.
+- `rgctl rules run rules` reports exactly one violation today (`audit-logging-0003`,
+  `OrderService.java:5`), because the dependency rule (`audit-logging-0001`) is not matched by
+  the current index and the logger is constructed but never used to emit an event. Group 4
+  must therefore verify the pom change and the (currently missing) event emission manually.
+- Community detection over the Java index returned 539 communities (modularity 0.36,
+  over-fragmented at method level), so communities are **not** usable as subsystem
+  boundaries; Java packages are the unit of work.
 
 Legend: each group ends with the mandatory integration hooks — **Test Generation**,
 **Containerization**, **Deployment**, **Documentation**.
@@ -162,8 +197,11 @@ no vendor-specific code. Behaviour must still be identical.
   - Delete `src/main/webapp/WEB-INF/web.xml` and `beans.xml`; `persistence.xml` is replaced in
     Group 3 (keep it until 3.3 so the baseline comparison remains explainable).
 - [ ] 2.4 Replace JAXB annotation with Jackson
-  - `Order` is annotated `@XmlRootElement`; remove `javax.xml.bind` and rely on Jackson
-    (Quarkus REST defaults to Jackson), keeping the serialized field names identical.
+  - `InventoryEntity` is annotated `@XmlRootElement` (`javax.xml.bind.annotation`); remove the
+    JAXB import/annotation and rely on Jackson (Quarkus REST defaults to Jackson), keeping the
+    serialized field names identical.
+  - `Order` (the REST response type for `/services/orders`) has no JAXB annotation — verify
+    its Jackson serialization matches the current JSON field names used by the SPA.
 - [ ] 2.5 Delete vendor-specific dead code
   - Delete `src/main/java/weblogic/application/ApplicationLifecycleEvent.java`,
     `.../ApplicationLifecycleListener.java`, `src/main/java/weblogic/i18n/logging/NonCatalogLogger.java`.
@@ -275,9 +313,10 @@ the new async/TCP API.
 - [ ] 4.2 Replace the `Logger` CDI producer
   - `utils/Producers.java` (`@Produces Logger produceLog(InjectionPoint)`) →
     `org.jboss.logging.Logger` injection (Quarkus-native) or keep `java.util.logging.Logger`
-    with `quarkus-logging-jboss-logmanager`. Update the 6 `@Inject Logger` sites
-    (`CatalogService`, `OrderService` (indirect), `ProductService`, `ShoppingCartService`,
-    `ShoppingCartOrderProcessor`, `DataBaseMigrationStartup` (deleted)).
+    with `quarkus-logging-jboss-logmanager`. Update the 5 `@Inject Logger` sites
+    (`CatalogService`, `ShoppingCartService`, `ShoppingCartOrderProcessor`, plus
+    `DataBaseMigrationStartup` and `StartupListener`, both deleted in Groups 3/2.5).
+    `Transformers` uses a `static` `Logger.getLogger(...)` (not CDI) and needs no change.
 - [ ] 4.3 Consume `audit-logging-library` 2.0.0 as a normal dependency
   - Replace the `system`-scope dependency + `systemPath ${project.basedir}/lib/...1.0.0.jar`
     with a regular `compile` dependency on `com.enterprise:audit-logging-library:2.0.0`.
@@ -301,7 +340,7 @@ the new async/TCP API.
     - `AuditConfiguration` gains `streamHost`, `streamPort`, `streamProtocol`,
       `streamBufferSize`, `streamReconnectMs` (+ `audit.stream.*` property keys). Bind them
       from MicroProfile Config / env vars, not hardcoded paths.
-    - `AuditEvent` is now a **record** with 13 components in order:
+    - `AuditEvent` is now a **record** with 14 components in order:
       `(Instant timestamp, String eventType, String userId, String sessionId, String application,
       String component, String action, String resource, AuditResult result, String message,
       Map<String,Object> details, String correlationId, String sourceIp, String userAgent)`.
@@ -311,8 +350,16 @@ the new async/TCP API.
       `logEventAsync(AuditEvent)` (returns `CompletableFuture<Void>`) or
       `logEventAsyncSafe(...)` for fire-and-forget. `logSuccess`/`logFailure`/`logDenied` are
       gone (`audit-logging-0005`) — build the record with `AuditResult` instead.
+  - **Decide the emission policy**: today the logger is only constructed (`init`) and closed
+    (`cleanup`) — no `AuditEvent` is ever emitted, so the audit trail is effectively empty.
+    Either (a) emit `logEventAsync` from `OrderService.save` (order created) with
+    `action`/`resource`/`result` populated — preferred, and covered by a characterization test
+    in Group 1 — or (b) delete the logger entirely and record the decision. Do not port the
+    dead initialization as-is.
   - Re-run `rgctl rules run rules` and require **zero** violations for
-    `audit-logging-0001..0005`.
+    `audit-logging-0001..0005`; additionally assert the pom no longer references 1.0.0 and
+    that no `com.enterprise.audit.logging.model.AuditEvent$Builder` bytecode reference remains
+    (`rg -n 'AuditEvent\.builder|FileSystemAuditLogger|logEvent\(' src/main/java`).
 - [ ] 4.5 Handle the audit transport in every environment
   - `audit.stream.host`/`port` from `AUDIT_STREAM_HOST`/`AUDIT_STREAM_PORT`.
   - Provide a dev/test profile that either points at a local collector or uses a no-op
@@ -542,11 +589,15 @@ Goal: declarative, zero-downtime deployment of the monolith plus its dependencie
     5.7.
   - Keycloak: realm `eap` imported from `realm-export.json`; client `eap-app` with the Route
     hostname in redirect URIs (no `localhost`).
-- [ ] 8.4 Build the delivery pipeline
-  - Replace `.github/workflows/main_clustertesting(dev).yml` (Azure Web App, Java 11,
-    `webapps-deploy`) with: build → test → image build/push → manifest update (GitOps) or
-    `oc apply`.
-  - Remove the `AZUREAPPSERVICE_PUBLISHPROFILE_*` secret dependency.
+- [ ] 8.4 Wire the delivery pipeline (platform-owned)
+  - CI/CD is provided by the migration platform as **Tekton pipelines on OpenShift**:
+    build → test → image build/push → manifest update (GitOps) or `oc apply`.
+  - **Do not create or modify `.github/workflows/`** (the existing
+    `main_clustertesting(dev).yml` Azure Web App workflow stays untouched); a pushed workflow
+    change is rejected by the platform. Record the existing workflow's Java 11 / Azure Web App
+    assumptions as obsolete in `MIGRATION.md` instead.
+  - Do not introduce new pipeline secrets in the repository; credentials belong in OpenShift
+    `Secret` objects managed by the platform.
 - [ ] 8.5 Define the cutover and rollback
   - Cutover: deploy Quarkus app alongside the JBoss EAP route, run the E2E suite against the
     new Route, then switch DNS/traffic; keep `ROOT.war` on JBoss deployable for 30 days.

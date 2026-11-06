@@ -20,8 +20,8 @@ consume order messages** — i.e. competing consumers on a topic backed by JBoss
 
 The application is small in application code (1,785 LOC / 30 Java files / 27 classes in
 `com.redhat.coolstore`) but has a large vendored web asset tree (`src/main/webapp/bower_components`,
-AngularJS/PatternFly/jQuery/DataTables), which dominates the indexed repository (1,232 files,
-35,862 symbols). An internal audit-logging library is consumed from a **`system`-scoped jar**
+AngularJS/PatternFly/jQuery/DataTables), which dominates the indexed repository (1,235 files,
+35,985 symbols). An internal audit-logging library is consumed from a **`system`-scoped jar**
 under `lib/` and is being upgraded from 1.0.0 to 2.0.0 as part of this migration.
 
 **Technology Stack:**
@@ -61,10 +61,16 @@ under `lib/` and is being upgraded from 1.0.0 to 2.0.0 as part of this migration
   - `utils` (4 classes): `Transformers` (JSON-P ↔ model), `Producers` (`Logger` producer),
     `DataBaseMigrationStartup` (`@Singleton @Startup`, Flyway), `StartupListener`
     (extends `weblogic.application.ApplicationLifecycleListener` — vendor-specific dead code).
-- Integration points and coupling (from the rgctl call graph: 129 internal `CALLS` edges):
-  - `ShoppingCart` is the hub type — 36 incoming calls; `ShoppingCartService` 15;
-    `ShoppingCartItem` 12; `Product` and `Order` 10 each; `CatalogService`,
-    `Transformers`, `OrderItem` 5 each.
+- Integration points and coupling (from the rgctl call graph: 138 intra-Java `CALLS` edges):
+  - `ShoppingCart` is the hub type — `getShoppingCartItemList` 7 incoming calls,
+    `getCartItemTotal` 4, `setShippingTotal` 3; `ShoppingCartService.getShoppingCart` 5,
+    `CartEndpoint.add` 5, `ShoppingCartService.priceShoppingCart` 4.
+  - Highest fan-out: `ShoppingCartService.priceShoppingCart` (13 calls),
+    `CartEndpoint.add` (12), `Transformers.jsonToOrder` (11), `Transformers.toProduct` (8),
+    `ShoppingCartService.initShoppingCartForPricing` (10).
+  - The four tightest file-level couplings are `ShoppingCartService → ShoppingCart` (15 calls),
+    `CartEndpoint → ShoppingCartService` (10), `CartEndpoint → ShoppingCart` (9),
+    `Transformers → Order` (8).
   - Remote EJB lookup: `ShoppingCartService` resolves `ShippingService` through
     `org.wildfly.naming.client.WildFlyInitialContextFactory` and the URL
     `ejb:/ROOT/ShippingService!com.redhat.coolstore.service.ShippingServiceRemote` on every
@@ -76,12 +82,32 @@ under `lib/` and is being upgraded from 1.0.0 to 2.0.0 as part of this migration
     `ShoppingCartOrderProcessor` publishes JSON produced by `Transformers.shoppingCartToJson`.
 
 **Scale:**
-- 1,232 indexed files; 35,862 graph nodes; 125,574 graph edges.
-- 537 Java symbols, 30 Java files, 27 application classes + 3 WebLogic stubs.
+- Full-repository index: 1,235 files → 35,985 nodes, 125,929 edges (dominated by the
+  vendored `bower_components` tree).
+- Java-scoped index (`rgctl discover . -l java --with-cfg --with-security --with-harmonic
+  --export-migration-hints`): 30 files → 680 nodes, 1,960 edges; 164 functions; 539
+  communities (over-fragmented, not usable as subsystem boundaries); 6 circular dependencies.
 - 1,785 LOC Java, 463 LOC application JavaScript, plus the vendored `bower_components` tree.
 - 4 REST resource classes, 9 JAX-RS endpoint methods, 1 JMS topic, 4 database tables.
 - No test sources exist (`src/test` absent, `maven.test.skip=true`).
 - Single team, no external owners; repository is a reference/demo-style codebase.
+
+**Knowledge-graph evidence (rgctl v0.4.20):**
+
+| Signal | Command | Result |
+|---|---|---|
+| Index coverage | `rgctl -f json metrics --pagerank` | 680 nodes / 1,960 edges (Java), 164 functions |
+| Subsystem map | `rgctl -f json communities list` | 539 communities, modularity 0.36 — no meaningful subsystem split; Java packages are the unit of work |
+| Coupling | `rgctl -f json relations --edge calls --limit 2000` | 138 intra-Java `CALLS` edges; top fan-in `ShoppingCart.getShoppingCartItemList` (7), `ShoppingCartService.getShoppingCart` (5), `CartEndpoint.add` (5), `ShoppingCartService.priceShoppingCart` (4); top fan-out `ShoppingCartService.priceShoppingCart` (13), `CartEndpoint.add` (12), `Transformers.jsonToOrder` (11) |
+| Migration roadmap | `rgctl discover . -l java --export-migration-hints` → `.rgctl/migration_plan.json` (7 steps) | Step 1 `weblogic.i18n.logging`, 2 `weblogic.application`, 3 `com.redhat.coolstore.persistence`, 4 `rest`, 5 `utils`, 6 `service`, 7 `model` (priority-ranked, see planning note) |
+| Rule violations | `rgctl -f json rules run rules` | 5 rules evaluated, 1 violation: `audit-logging-0003` at `OrderService.java:5` (`FileSystemAuditLogger` import) |
+| Security | `--with-security` | 5 potential secrets flagged in the full-repo index; review candidates are `keycloak.json`, `realm-export.json`, `coolstore.json` and the README's `postgresPW` — all credentials must move to ConfigMap/Secret |
+| Data flow | `--with-taint` | 1 taint flow reported by the Phase-1 discover (1 vulnerable); the planner did not attribute it to a Java sink — re-verify with `rgctl taint --sink <symbol>` before relying on it |
+
+*Planning note:* rgctl ranks `rest` above `service` and `model` on priority score, but the call
+graph is `rest → service → (model, utils, persistence)`; the plan below therefore follows
+**dependency (build) order** and uses the rgctl roadmap only for the "vendor stubs first"
+signal (steps 1–2) and for hotspot prioritisation of tests.
 
 ## Target Platform and Technologies
 
@@ -125,8 +151,8 @@ existing SPA and any API consumers keep working.
 - Workloads: one application Deployment (Quarkus app serving SPA + REST), one PostgreSQL
   instance (or an operator-provisioned database such as Crunchy/CloudNativePG), the messaging
   broker, and an external/realm-configured Keycloak, plus an audit log collector endpoint.
-- CI/CD: OpenShift Pipelines (Tekton) or GitHub Actions building the container image and
-  applying manifests via GitOps (Argo CD).
+- CI/CD: OpenShift Pipelines (Tekton) provided by the migration platform, building the image
+  and applying manifests via GitOps; `.github/workflows/` is out of scope and must not change.
 
 **Infrastructure Requirements:**
 - Container runtime: Podman (local), UBI 9 / OpenJDK 21 base images.
@@ -171,8 +197,12 @@ This is *not* a microservice decomposition and *not* an unplanned big bang.
    re-modelling, messaging rewrite (MDB → reactive messaging).
 6. **REST layer & SPA hosting** — Jakarta REST resources, `@SessionScoped` resource fix,
    static SPA/JSP replacement, OIDC wiring.
-7. **Containerization & OpenShift** — Containerfile, manifests, probes, secrets, routes.
-8. **Verification & cutover** — E2E, performance baseline, rollback plan, docs.
+7. **Containerization** — Containerfile, image hardening, registry push, digest pinning.
+8. **OpenShift deployment** — manifests, probes, secrets, routes, autoscaling, pipeline.
+9. **Verification & cutover** — E2E, performance baseline, rollback plan, docs, handover.
+
+*(The nine phases map 1:1 to the nine task groups in `mig-plan-workspace/tasks.md` and to the
+nine user stories in `mig-plan-workspace/UserStory.md`.)*
 
 **Key Considerations:**
 - `javax.*` → `jakarta.*` touches every Java file including annotations
@@ -190,7 +220,7 @@ This is *not* a microservice decomposition and *not* an unplanned big bang.
 - Flyway: `new Flyway()`/`setDataSource()`/`baseline()` are removed in Flyway 9/10; the
   migration bean must be deleted in favour of `quarkus-flyway`, and existing V1_1/V1_2
   checksums must be preserved so already-migrated databases do not re-run or fail.
-- `audit-logging-library` 2.0.0 changes: `AuditEvent` is a **record** (13 components:
+- `audit-logging-library` 2.0.0 changes: `AuditEvent` is a **record** (14 components:
   `timestamp, eventType, userId, sessionId, application, component, action, resource, result,
   message, details, correlationId, sourceIp, userAgent`), `builder()` is gone,
   `FileSystemAuditLogger` is replaced by `StreamableAuditLogger`, `logEvent(...)` is
@@ -198,7 +228,10 @@ This is *not* a microservice decomposition and *not* an unplanned big bang.
   `AuditConfiguration` gains `streamHost/streamPort/streamProtocol/streamBufferSize/
   streamReconnectMs` (`audit.stream.*` properties). Only one violation is currently reported
   by `rgctl rules run rules` (`audit-logging-0003`, `OrderService.java:5`), but the whole
-  audit call site must be rewritten, not just the import.
+  audit call site must be rewritten, not just the import. Note that the current code only
+  *constructs* `FileSystemAuditLogger` in `@PostConstruct` and closes it in `@PreDestroy`;
+  no `AuditEvent` is ever emitted. The migration must decide explicitly whether to start
+  emitting audit events (e.g. `logEventAsync` on `OrderService.save`) or drop the logger.
 - JSPs (`index.jsp`, `health.jsp`) are unsupported on Quarkus; `index.jsp` also creates the
   HTTP session the SPA relied on. Static `index.html` + OIDC JS client replaces it; health
   becomes SmallRye Health.
@@ -235,8 +268,10 @@ This is *not* a microservice decomposition and *not* an unplanned big bang.
   consumer group semantics equivalent to the current JMS topic.
 - Rolling deployment strategy with zero-downtime cutover; documented rollback to the WAR on
   JBoss EAP 7.4 (`ROOT.war`) until the Quarkus deployment is accepted.
-- Remove the Azure Web App GitHub Actions workflow or repurpose it for image build + OpenShift
-  deploy; the JBoss `jboss-cli` setup steps in the README become obsolete.
+- **Do not create or modify anything under `.github/workflows/`** — CI/CD is owned by the
+  migration platform (Tekton pipelines on OpenShift) and a pushed workflow file is rejected.
+  The existing Azure Web App workflow is left in place, superseded by the platform pipeline;
+  the JBoss `jboss-cli` setup steps in the README become obsolete.
 
 ### 3. Test Coverage
 - **Characterization tests** (written *first*, against the current behaviour):
@@ -311,7 +346,7 @@ This is *not* a microservice decomposition and *not* an unplanned big bang.
 
 **Risks:**
 - *Jakarta namespace sweep* — a missed `javax.*` import (e.g. `javax.json` in `Transformers`,
-  `javax.xml.bind` in `Order`) fails at runtime, not compile time, if the javax artifact
+  `javax.xml.bind` in `InventoryEntity`) fails at runtime, not compile time, if the javax artifact
   lingers on the classpath. Mitigation: full-tree grep gate in CI plus a build without any
   `javax.*` EE API dependency.
 - *Cart/session semantics* — `@Stateful` `ShoppingCartService` and `@SessionScoped`
@@ -321,7 +356,7 @@ This is *not* a microservice decomposition and *not* an unplanned big bang.
 - *JMS → reactive messaging parity* — ordering, redelivery and the "both nodes consume"
   clustering demo have no direct 1:1 mapping. Mitigation: define the channel/topic contract
   first, add consumer-group configuration, and test with 2 replicas.
-- *Audit library rewrite* — record constructor with 13 components, async send, and a TCP
+- *Audit library rewrite* — record constructor with 14 components, async send, and a TCP
   collector that may not exist in the target environment; `logEvent` is deprecated, not
   removed. Mitigation: introduce a thin adapter, configure `audit.stream.*`, and provide a
   collector (or a no-op fallback profile) for local/dev.

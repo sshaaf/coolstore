@@ -235,7 +235,7 @@ Estimates assume a small team comfortable with Java EE but new to Quarkus; 1 poi
 - [ ] `RANDOM_NAMES`/`RANDOM_EMAILS` randomisation still applies to generated customer name/email.
 - [ ] `audit-logging-library` 2.0.0 is a normal Maven dependency; no `system` scope and no `systemPath` remains.
 - [ ] `OrderService` uses `StreamableAuditLogger` with `audit.stream.host`/`audit.stream.port` from configuration, not a local directory.
-- [ ] `AuditEvent` is constructed as the 13-component record; `builder()`, `logSuccess`, `logFailure` are not used.
+- [ ] `AuditEvent` is constructed as the 14-component record; `builder()`, `logSuccess`, `logFailure` are not used.
 - [ ] `logEventAsync`/`logEventAsyncSafe` is used instead of the deprecated `logEvent`.
 - [ ] `rgctl rules run rules` reports zero violations for `audit-logging-0001` … `audit-logging-0005`.
 - [ ] Tests do not open TCP connections (dev/test profile uses a local fake collector or no-op).
@@ -252,6 +252,9 @@ Estimates assume a small team comfortable with Java EE but new to Quarkus; 1 poi
 - Story 2 complete (Java 21 toolchain — mandatory for the 2.0.0 jar, which uses a `record` and virtual threads).
 - Story 3 complete (`Transformers` output feeds both REST and messaging paths that are already tested).
 - A decision on where audit events go in each environment (collector host/port, or accepted no-op in dev).
+- Product sign-off on **starting** to emit audit events: the current code constructs the logger
+  but never calls `logEvent`, so there is no audit trail to preserve — emitting on
+  `OrderService.save` is new behaviour and must be agreed (alternative: delete the logger).
 
 ---
 
@@ -274,7 +277,7 @@ Estimates assume a small team comfortable with Java EE but new to Quarkus; 1 poi
 ### Test Cases
 - Test 1: Golden-file comparison of `shoppingCartToJson` before and after for 3 carts (empty, single item, multi-item with promos).
 - Test 2: `jsonToOrder` parses the documented payload and preserves `productSku`→`productId` mapping.
-- Test 3: Against a fake TCP server, an emitted event arrives as one NDJSON line with all 13 record fields.
+- Test 3: Against a fake TCP server, an emitted event arrives as one NDJSON line with all 14 record fields.
 - Test 4: With the collector down, `logEventAsync` fails without breaking the checkout response (safe path).
 - Test 5: `rgctl rules run rules` → `violations: []`.
 
@@ -481,7 +484,7 @@ Estimates assume a small team comfortable with Java EE but new to Quarkus; 1 poi
 
 ### Notes / Comments
 - The current `pom.xml` uses `system` scope with `${project.basedir}/lib/audit-logging-library-1.0.0.jar`; container builds cannot rely on that path, hence the `maven-install-plugin` step.
-- Keeping the full `bower_components` tree inflates the image substantially (the repo's vendored JS dominates the 1,232 indexed files); measure and record the trade-off.
+- Keeping the full `bower_components` tree inflates the image substantially (the repo's vendored JS dominates the full-repo index (1,235 files)); measure and record the trade-off.
 
 ---
 
@@ -502,7 +505,7 @@ Estimates assume a small team comfortable with Java EE but new to Quarkus; 1 poi
 - [ ] Rolling updates use `maxUnavailable: 0` and a termination grace period long enough to finish in-flight orders.
 - [ ] PostgreSQL, the messaging broker (`orders` topic) and Keycloak (realm `eap`) are provisioned or bound and reachable from the app.
 - [ ] Flyway migrates at application start on a fresh namespace.
-- [ ] The Azure Web App workflow and its publish-profile secret dependency are replaced by an image build + OpenShift deploy pipeline.
+- [ ] The OpenShift Pipelines (Tekton) pipeline builds, tests and deploys the image; no file under `.github/workflows/` is created or modified.
 - [ ] A documented cutover and a rehearsed rollback to JBoss EAP 7.4 exist.
 
 ---
@@ -524,7 +527,7 @@ Estimates assume a small team comfortable with Java EE but new to Quarkus; 1 poi
 1. Author manifests with Kustomize overlays per environment.
 2. Wire probes, graceful shutdown and rolling update strategy.
 3. Provision PostgreSQL, broker and Keycloak; import the realm.
-4. Replace the GitHub Actions workflow with build → test → image → deploy (or GitOps commit).
+4. Confirm the platform-provided Tekton pipeline (build → test → image → deploy/GitOps); do **not** touch `.github/workflows/`.
 5. Rehearse cutover and a rollback drill.
 
 ---
